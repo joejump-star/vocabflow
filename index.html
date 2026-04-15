@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>VocabFlow</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2D6A4F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="VocabFlow">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+TC:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F6F5F0;
+  --bg2: #EDECE7;
+  --surface: #FFFFFF;
+  --surface-dim: #F0EFE9;
+  --ink: #1A1917;
+  --ink2: #4A4944;
+  --ink3: #8A897F;
+  --ink4: #B5B4AC;
+  --accent: #2D6A4F;
+  --accent-light: #40916C;
+  --accent-bg: #D8F3DC;
+  --accent-bg2: #B7E4C7;
+  --warm: #E07A3A;
+  --warm-bg: #FFF0E5;
+  --red: #C0392B;
+  --red-bg: #FDECEA;
+  --blue: #2E86AB;
+  --blue-bg: #E8F4F8;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+  --font-en: 'Outfit', 'DM Sans', sans-serif;
+  --font-zh: 'Noto Sans TC', sans-serif;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: var(--font-zh);
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== App Shell ===== */
+.app { max-width: 430px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; position: relative; background: var(--bg); }
+
+.screen { display: none; flex-direction: column; flex: 1; }
+.screen.active { display: flex; animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pop { 0% { transform: scale(0.92); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+@keyframes flip3d { 0% { transform: rotateY(0); } 100% { transform: rotateY(180deg); } }
+@keyframes correctPulse { 0% { box-shadow: 0 0 0 0 rgba(45,106,79,0.3); } 70% { box-shadow: 0 0 0 12px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes wrongShake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-5px); } 40%,80% { transform: translateX(5px); } }
+@keyframes ringFill { from { stroke-dashoffset: 440; } }
+@keyframes feedbackPop {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(0.3); }
+  50% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); }
+  100% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+}
+@keyframes feedbackFade {
+  0% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(1.4); }
+}
+
+/* Quiz feedback overlay */
+.quiz-feedback {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; z-index: 200;
+}
+.quiz-feedback-icon {
+  position: absolute; top: 40%; left: 50%;
+  transform: translate(-50%,-50%) scale(0.3);
+  font-size: 80px; opacity: 0;
+  animation: feedbackPop 0.35s ease forwards, feedbackFade 0.3s ease 0.55s forwards;
+}
+.quiz-feedback-bg {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  opacity: 0;
+  animation: fadeIn 0.15s ease forwards, feedbackFade 0.2s ease 0.6s forwards;
+}
+.qf-correct .quiz-feedback-bg { background: rgba(45,106,79,0.08); }
+.qf-wrong .quiz-feedback-bg { background: rgba(192,57,43,0.08); }
+
+/* ===== Top Bar ===== */
+.top-bar { display: flex; align-items: center; padding: 14px 20px; gap: 12px; }
+.back-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--ink2); padding: 4px 8px; border-radius: 8px; transition: background var(--transition); }
+.back-btn:active { background: var(--bg2); }
+.top-bar-title { flex: 1; font-size: 16px; font-weight: 600; }
+.top-bar-right { font-family: var(--font-en); font-size: 13px; color: var(--ink3); font-weight: 500; }
+
+/* ===== Progress Bar ===== */
+.progress-wrap { padding: 0 20px; }
+.progress-track { height: 3px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+
+/* ===== Bottom Nav ===== */
+.bottom-nav {
+  display: flex;
+  padding: 8px 16px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--bg2);
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 10px; font-weight: 500; color: var(--ink4);
+  cursor: pointer; background: none; border: none; font-family: var(--font-en);
+  padding: 6px 0; border-radius: 8px; transition: color var(--transition);
+}
+.nav-item.active { color: var(--accent); }
+.nav-item svg { width: 22px; height: 22px; }
+
+/* ============================
+   HOME SCREEN - Google style
+   ============================ */
+.home-screen { display: flex; flex-direction: column; flex: 1; }
+.home-spacer { flex: 0 0 60px; }
+
+.home-brand {
+  text-align: center;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease;
+}
+.home-logo {
+  font-family: var(--font-en);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -2px;
+  color: var(--accent);
+}
+.home-logo span { color: var(--warm); }
+.home-tagline {
+  font-size: 14px;
+  color: var(--ink3);
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+/* Search bar */
+.search-wrap {
+  width: 100%;
+  padding: 0 24px;
+  animation: slideUp 0.5s ease 0.1s both;
+}
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 2px solid var(--bg2);
+  border-radius: 28px;
+  padding: 0 8px 0 20px;
+  height: 54px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+  gap: 4px;
+}
+.search-bar:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md), 0 0 0 3px rgba(45,106,79,0.08);
+}
+.search-icon { color: var(--ink4); flex-shrink: 0; }
+.search-input {
+  flex: 1; border: none; outline: none; background: none;
+  font-size: 16px; font-family: var(--font-en);
+  color: var(--ink); padding: 0 8px;
+}
+.search-input::placeholder { color: var(--ink4); font-weight: 300; }
+.search-divider { width: 1px; height: 24px; background: var(--bg2); flex-shrink: 0; }
+.search-camera {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer; border: none;
+  background: none; color: var(--ink3);
+  transition: all var(--transition);
+}
+.search-camera:active { background: var(--bg2); }
+
+/* Quick actions */
+.home-actions {
+  display: flex; gap: 12px;
+  padding: 0 24px; margin-top: 20px;
+  width: 100%;
+  animation: slideUp 0.5s ease 0.2s both;
+}
+.home-action {
+  flex: 1; display: flex; flex-direction: row; align-items: center; gap: 8px;
+  padding: 12px 14px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--bg2);
+  cursor: pointer; transition: all var(--transition);
+  font-family: var(--font-en);
+}
+.home-action:active { transform: scale(0.96); background: var(--surface-dim); }
+.home-action-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.home-action span { font-size: 13px; font-weight: 600; color: var(--ink2); }
+.ha-green .home-action-icon { background: var(--accent-bg); }
+.ha-warm .home-action-icon { background: var(--warm-bg); }
+.ha-blue .home-action-icon { background: var(--blue-bg); }
+
+/* Recent words */
+.home-recent {
+  width: 100%; padding: 0 24px; margin-top: 28px;
+  animation: slideUp 0.5s ease 0.3s both;
+}
+.home-recent-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.home-recent-header h3 { font-size: 13px; font-weight: 600; color: var(--ink3); letter-spacing: 0.5px; }
+.home-recent-header button {
+  font-size: 12px; color: var(--accent); background: none; border: none;
+  cursor: pointer; font-family: var(--font-zh); font-weight: 500;
+}
+.recent-list { display: flex; flex-direction: column; gap: 6px; }
+.recent-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; background: var(--surface);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background var(--transition);
+  border: 1px solid transparent;
+}
+.recent-item:active { background: var(--surface-dim); }
+.recent-word {
+  font-family: var(--font-en); font-size: 15px; font-weight: 600; color: var(--ink);
+}
+.recent-meaning { font-size: 13px; color: var(--ink3); margin-left: auto; }
+.recent-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-new { background: var(--accent); }
+.dot-review { background: var(--warm); }
+
+/* ============================
+   DICTIONARY SCREEN
+   ============================ */
+.dict-screen { background: var(--bg); }
+.dict-content { flex: 1; padding: 0 20px; overflow-y: auto; padding-bottom: 100px; }
+
+.dict-word-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 12px;
+  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.35s ease;
+}
+.dict-word {
+  font-family: var(--font-en);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--ink);
+}
+.dict-phonetic-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 6px;
+}
+.dict-phonetic {
+  font-family: var(--font-en);
+  font-size: 15px;
+  color: var(--accent-light);
+  font-weight: 400;
+}
+.dict-speak-group {
+  display: flex; align-items: center; gap: 6px;
+}
+.dict-speak {
+  height: 30px; border-radius: 15px;
+  background: var(--accent-bg); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  color: var(--accent); font-size: 12px; font-weight: 600;
+  font-family: var(--font-en);
+  padding: 0 12px;
+  transition: all var(--transition);
+}
+.dict-speak:active { transform: scale(0.92); background: var(--accent-bg2); }
+.dict-speak.playing { background: var(--accent); color: #fff; }
+.dict-pos {
+  display: inline-block; margin-top: 10px;
+  font-family: var(--font-en); font-size: 12px; font-weight: 500;
+  color: var(--accent); background: var(--accent-bg);
+  padding: 3px 10px; border-radius: 12px;
+}
+
+.dict-meanings { margin-top: 16px; }
+.dict-meaning-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bg2);
+}
+.dict-meaning-item:last-child { border-bottom: none; }
+.dict-meaning-zh {
+  font-size: 13px; font-weight: 500; color: var(--accent);
+}
+.dict-meaning-en {
+  font-family: var(--font-en);
+  font-size: 15px; color: var(--ink);
+  line-height: 1.5;
+  font-weight: 400;
+}
+.dict-meaning-zh {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  margin-top: 3px;
+  transition: background var(--transition);
+}
+.dict-meaning-zh:hover { background: var(--bg2); }
+.dict-zh-placeholder {
+  color: var(--ink4) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  font-style: italic;
+  border: 1px dashed var(--bg2);
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 8px;
+  text-align: center;
+}
+.dict-zh-placeholder:hover { border-color: var(--accent); color: var(--accent) !important; }
+.dict-example-zh {
+  font-size: 13px; color: var(--ink3);
+  margin-top: 3px; line-height: 1.5;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background var(--transition);
+}
+.dict-example-zh:hover { background: var(--bg2); }
+.dict-edit-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: var(--font-zh);
+  color: var(--ink);
+  background: var(--surface);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(45,106,79,0.1);
+}
+.dict-translate-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-bg2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-zh);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.dict-translate-btn:active { transform: scale(0.95); background: var(--accent-bg2); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.dict-example-block {
+  margin-top: 8px; padding-left: 12px;
+  border-left: 2px solid var(--accent-bg2);
+}
+.dict-example {
+  font-family: var(--font-en);
+  font-size: 14px; color: var(--ink2);
+  line-height: 1.6;
+  font-style: italic;
+}
+.dict-example-zh {
+  font-size: 13px; color: var(--ink3);
+  margin-top: 3px; line-height: 1.5;
+  font-style: normal;
+}
+
+/* Save to bank button */
+.dict-save-bar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  padding: 12px 20px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, var(--bg) 20%);
+}
+.dict-save-btn {
+  width: 100%; padding: 12px;
+  border: none; border-radius: var(--radius);
+  font-size: 14px; font-weight: 600;
+  font-family: var(--font-en); cursor: pointer;
+  transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.dict-save-btn.save {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 4px 12px rgba(45,106,79,0.25);
+}
+.dict-save-btn.save:active { transform: scale(0.97); }
+.dict-save-btn.saved {
+  background: var(--accent-bg); color: var(--accent);
+}
+
+/* ============================
+   WORD BANK SCREEN
+   ============================ */
+.bank-screen { background: var(--bg); }
+.bank-content { flex: 1; padding: 0 20px; overflow-y: auto; padding-bottom: 20px; }
+
+.bank-stats {
+  display: flex; gap: 10px; margin-top: 8px;
+}
+.bank-stat {
+  flex: 1; background: var(--surface); border-radius: var(--radius-sm);
+  padding: 10px; text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+.bank-stat-num {
+  font-family: var(--font-en); font-size: 24px; font-weight: 700;
+}
+.bank-stat-label { font-size: 11px; color: var(--ink3); margin-top: 2px; }
+.stat-green .bank-stat-num { color: var(--accent); }
+.stat-warm .bank-stat-num { color: var(--warm); }
+.stat-blue .bank-stat-num { color: var(--blue); }
+
+.bank-actions {
+  display: flex; gap: 10px; margin-top: 16px;
+}
+.bank-action-btn {
+  flex: 1; padding: 10px;
+  border-radius: var(--radius-sm); border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: var(--font-en);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all var(--transition);
+}
+.bank-action-btn:active { transform: scale(0.96); }
+.bank-action-btn.primary { background: var(--accent); color: #fff; }
+.bank-action-btn.secondary { background: var(--surface); color: var(--ink2); border: 1px solid var(--bg2); }
+
+.bank-word-list { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.bank-word-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; background: var(--surface);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.bank-word-item:active { background: var(--surface-dim); }
+.bw-word {
+  font-family: var(--font-en); font-size: 16px; font-weight: 600;
+}
+.bw-meaning { font-size: 13px; color: var(--ink3); }
+.bw-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.bw-level {
+  font-family: var(--font-en); font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 10px;
+}
+.level-new { background: var(--accent-bg); color: var(--accent); }
+.level-learning { background: var(--warm-bg); color: var(--warm); }
+.level-mastered { background: var(--blue-bg); color: var(--blue); }
+
+/* ============================
+   FLASHCARD SCREEN
+   ============================ */
+.fc-area {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.card-3d-wrap {
+  perspective: 1000px;
+  width: 100%; max-width: 320px; height: 420px;
+  cursor: pointer;
+}
+.card-3d {
+  width: 100%; height: 100%; position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-3d.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute; width: 100%; height: 100%;
+  backface-visibility: hidden; border-radius: 20px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 28px; text-align: center;
+}
+.card-front {
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--bg2);
+}
+.card-back {
+  background: var(--accent);
+  color: #fff;
+  transform: rotateY(180deg);
+  box-shadow: var(--shadow-lg);
+  justify-content: flex-start;
+  padding-top: 32px;
+}
+.card-word {
+  font-family: var(--font-en); font-size: 36px; font-weight: 700;
+  letter-spacing: -1px;
+}
+.card-phonetic {
+  font-family: var(--font-en); font-size: 15px;
+  color: var(--accent-light); margin-top: 6px;
+}
+.card-back .card-phonetic { color: rgba(255,255,255,0.7); }
+.card-pos-badge {
+  font-family: var(--font-en); font-size: 12px; font-weight: 500;
+  padding: 3px 12px; border-radius: 12px; margin-top: 10px;
+}
+.card-front .card-pos-badge { background: var(--accent-bg); color: var(--accent); }
+.card-back .card-pos-badge { background: rgba(255,255,255,0.2); color: #fff; }
+.card-hint {
+  font-size: 13px; color: var(--ink4); margin-top: 28px;
+}
+.card-back .card-hint { color: rgba(255,255,255,0.6); margin-top: auto; }
+.card-meaning-en {
+  font-family: var(--font-en); font-size: 15px; font-weight: 400;
+  color: rgba(255,255,255,0.9); line-height: 1.5;
+  margin-top: 4px;
+}
+.card-meaning-zh {
+  font-size: 24px; font-weight: 700;
+  margin-top: 8px;
+}
+.card-examples {
+  width: 100%; margin-top: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.card-example-item {
+  text-align: left;
+  padding-left: 10px;
+  border-left: 2px solid rgba(255,255,255,0.3);
+}
+.card-example-en {
+  font-family: var(--font-en); font-size: 13px;
+  color: rgba(255,255,255,0.8); line-height: 1.5;
+  font-style: italic;
+}
+.card-example-zh-text {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px; line-height: 1.4;
+}
+
+.card-actions {
+  display: flex; gap: 14px; margin-top: 24px;
+  width: 100%; max-width: 320px;
+}
+.card-btn {
+  flex: 1; padding: 12px; border: none; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; font-family: var(--font-en);
+  cursor: pointer; transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.card-btn:active { transform: scale(0.95); }
+.btn-forgot { background: var(--red-bg); color: var(--red); }
+.btn-got { background: var(--accent-bg); color: var(--accent); }
+
+/* ============================
+   QUIZ SCREEN
+   ============================ */
+.quiz-area { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+.quiz-prompt { text-align: center; margin: 20px 0 8px; }
+.quiz-label { font-size: 13px; color: var(--ink3); margin-bottom: 10px; }
+.quiz-word {
+  font-family: var(--font-en); font-size: 34px; font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.quiz-phonetic {
+  font-family: var(--font-en); font-size: 15px;
+  color: var(--accent-light); margin-top: 4px;
+}
+.quiz-options {
+  display: flex; flex-direction: column;
+  gap: 10px; margin-top: 28px; flex: 1; justify-content: center;
+}
+.quiz-option {
+  padding: 16px 18px; background: var(--surface);
+  border: 1.5px solid var(--bg2); border-radius: var(--radius-sm);
+  font-size: 16px; font-weight: 500; text-align: left;
+  cursor: pointer; transition: all 0.2s;
+  font-family: var(--font-zh); color: var(--ink);
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.quiz-option:active { transform: scale(0.98); }
+.option-key {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--bg2); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-en); font-size: 13px; font-weight: 600;
+  color: var(--ink3); flex-shrink: 0;
+}
+.quiz-option.correct {
+  border-color: var(--accent); background: var(--accent-bg);
+  animation: correctPulse 0.5s ease;
+}
+.quiz-option.correct .option-key { background: var(--accent); color: #fff; }
+.quiz-option.wrong {
+  border-color: var(--red); background: var(--red-bg);
+  animation: wrongShake 0.4s ease;
+}
+.quiz-option.wrong .option-key { background: var(--red); color: #fff; }
+.quiz-option.disabled { pointer-events: none; opacity: 0.45; }
+
+/* ============================
+   RESULTS SCREEN
+   ============================ */
+.results-area {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 30px 20px; text-align: center;
+}
+.results-circle {
+  width: 140px; height: 140px; border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  margin-bottom: 20px; position: relative;
+  animation: pop 0.5s ease;
+}
+.results-circle svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; transform: rotate(-90deg);
+}
+.results-circle circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+.results-circle .track { stroke: var(--bg2); }
+.results-circle .fill-circle { stroke: var(--accent); stroke-dasharray: 440; transition: stroke-dashoffset 1s ease 0.3s; }
+.results-score { font-family: var(--font-en); font-size: 38px; font-weight: 700; z-index: 1; }
+.results-label { font-size: 12px; color: var(--ink3); z-index: 1; }
+.results-msg { font-size: 20px; font-weight: 600; }
+.results-sub { font-size: 14px; color: var(--ink3); margin-top: 4px; margin-bottom: 28px; line-height: 1.5; }
+.results-btns { display: flex; gap: 10px; width: 100%; max-width: 300px; }
+.result-btn {
+  flex: 1; padding: 12px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; font-family: var(--font-en);
+  cursor: pointer; border: none; transition: all var(--transition);
+}
+.result-btn:active { transform: scale(0.95); }
+.result-btn.primary { background: var(--accent); color: #fff; }
+.result-btn.secondary { background: var(--surface); color: var(--ink2); border: 1px solid var(--bg2); }
+
+/* ===== Not Found Page ===== */
+.nf-container {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 40px 20px; text-align: center;
+  animation: slideUp 0.35s ease;
+}
+.nf-icon {
+  font-size: 56px; margin-bottom: 16px;
+  animation: pop 0.5s ease;
+}
+.nf-title {
+  font-size: 18px; font-weight: 600; color: var(--ink);
+  margin-bottom: 6px;
+}
+.nf-input-word {
+  font-family: var(--font-en); color: var(--red);
+  font-weight: 700;
+}
+.nf-subtitle {
+  font-size: 13px; color: var(--ink3); margin-bottom: 28px;
+}
+.nf-suggest-label {
+  font-size: 13px; font-weight: 600; color: var(--ink2);
+  margin-bottom: 10px; align-self: stretch; text-align: left;
+}
+.nf-suggest-list {
+  width: 100%; display: flex; flex-direction: column; gap: 8px;
+  margin-bottom: 24px;
+}
+.nf-suggest-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 14px 16px;
+  background: var(--surface); border: 1.5px solid var(--bg2);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: all var(--transition);
+  text-align: left; font-family: var(--font-zh);
+}
+.nf-suggest-item:active {
+  background: var(--accent-bg); border-color: var(--accent);
+  transform: scale(0.98);
+}
+.nf-suggest-word {
+  font-family: var(--font-en); font-size: 16px; font-weight: 600;
+  color: var(--accent);
+}
+.nf-suggest-meaning {
+  font-size: 13px; color: var(--ink3); flex: 1;
+}
+.nf-suggest-arrow {
+  font-size: 16px; color: var(--ink4);
+}
+.nf-back-btn {
+  padding: 12px 28px; border-radius: var(--radius-sm);
+  border: 1px solid var(--bg2); background: var(--surface);
+  font-size: 14px; font-weight: 500; color: var(--ink2);
+  cursor: pointer; font-family: var(--font-zh);
+  transition: all var(--transition);
+}
+.nf-back-btn:active { background: var(--surface-dim); transform: scale(0.96); }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px);
+  background: var(--ink); color: #fff; padding: 10px 20px;
+  border-radius: 20px; font-size: 13px; font-weight: 500;
+  opacity: 0; pointer-events: none; z-index: 100;
+  transition: all 0.3s ease;
+  font-family: var(--font-zh);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ===== Empty State ===== */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px 20px; color: var(--ink3);
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state p { font-size: 14px; text-align: center; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<div class="toast" id="toast"></div>
+
+<!-- ========== HOME SCREEN ========== -->
+<div class="screen active" id="screen-home">
+  <div class="home-screen">
+    <div class="home-spacer"></div>
+
+    <div class="home-brand">
+      <div class="home-logo">Vocab<span>Flow</span></div>
+      <div class="home-tagline">查一個字，記一輩子</div>
+    </div>
+
+    <div class="search-wrap">
+      <div class="search-bar">
+        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input class="search-input" id="search-input" type="text" placeholder="Learn a word..." autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div class="search-divider"></div>
+        <button class="search-camera" onclick="showToast('📷 拍照辨識功能開發中')" title="拍照查字">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="home-actions">
+      <div class="home-action ha-green" onclick="goToScreen('bank')">
+        <div class="home-action-icon">📚</div>
+        <span>Word Bank</span>
+      </div>
+      <div class="home-action ha-warm" onclick="startFlashcard()">
+        <div class="home-action-icon">🃏</div>
+        <span>Cards</span>
+      </div>
+      <div class="home-action ha-blue" onclick="startQuiz()">
+        <div class="home-action-icon">✍️</div>
+        <span>Quiz</span>
+      </div>
+    </div>
+
+    <div class="home-recent" id="home-recent">
+      <div class="home-recent-header">
+        <h3>最近查過</h3>
+        <button onclick="goToScreen('bank')">View All</button>
+      </div>
+      <div class="recent-list" id="recent-list"></div>
+    </div>
+
+    <div style="flex:1"></div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      Search
+    </button>
+    <button class="nav-item" onclick="goToScreen('bank')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      Bank
+    </button>
+    <button class="nav-item" onclick="startFlashcard()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Cards
+    </button>
+    <button class="nav-item" onclick="startQuiz()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Quiz
+    </button>
+  </div>
+</div>
+
+<!-- ========== DICTIONARY SCREEN ========== -->
+<div class="screen" id="screen-dict">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goToScreen('home')">←</button>
+    <div class="search-bar" style="flex:1;height:42px;padding:0 6px 0 14px;">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input class="search-input" id="dict-search" type="text" placeholder="Search another word..." style="font-size:14px;" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+  </div>
+  <div class="dict-content" id="dict-content"></div>
+  <div class="dict-save-bar">
+    <button class="dict-save-btn save" id="dict-save-btn" onclick="toggleSaveWord()">
+      <span id="save-btn-text">＋ 加入單字庫</span>
+    </button>
+  </div>
+</div>
+
+<!-- ========== WORD BANK SCREEN ========== -->
+<div class="screen" id="screen-bank">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goToScreen('home')">←</button>
+    <div class="top-bar-title">Word Bank</div>
+    <div class="top-bar-right" id="bank-count">0 字</div>
+  </div>
+  <div class="bank-content">
+    <div class="bank-stats">
+      <div class="bank-stat stat-green">
+        <div class="bank-stat-num" id="bs-total">0</div>
+        <div class="bank-stat-label">全部</div>
+      </div>
+      <div class="bank-stat stat-warm">
+        <div class="bank-stat-num" id="bs-learning">0</div>
+        <div class="bank-stat-label">學習中</div>
+      </div>
+      <div class="bank-stat stat-blue">
+        <div class="bank-stat-num" id="bs-mastered">0</div>
+        <div class="bank-stat-label">已掌握</div>
+      </div>
+    </div>
+
+    <div class="bank-actions">
+      <button class="bank-action-btn primary" onclick="startFlashcard()">🃏 Review</button>
+      <button class="bank-action-btn secondary" onclick="startQuiz()">✍️ Quiz</button>
+    </div>
+
+    <div class="bank-word-list" id="bank-word-list"></div>
+  </div>
+</div>
+
+<!-- ========== FLASHCARD SCREEN ========== -->
+<div class="screen" id="screen-flashcard">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goToScreen('home')">←</button>
+    <div class="top-bar-title">Flashcards</div>
+    <div class="top-bar-right" id="fc-counter">1 / 10</div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="fc-progress" style="width:10%"></div></div>
+  </div>
+  <div class="fc-area">
+    <div class="card-3d-wrap" onclick="flipCard()">
+      <div class="card-3d" id="flashcard">
+        <div class="card-face card-front">
+          <div class="card-word" id="fc-word"></div>
+          <div class="card-phonetic" id="fc-phonetic"></div>
+          <div class="card-pos-badge" id="fc-pos"></div>
+          <div class="card-hint">Tap to flip</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-meaning-en" id="fc-meaning-en"></div>
+          <div class="card-meaning-zh" id="fc-meaning-zh"></div>
+          <div class="card-examples" id="fc-examples"></div>
+          <div class="card-hint">Tap to flip back</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="card-btn btn-forgot" onclick="cardAnswer(false)">😕 Forgot</button>
+      <button class="card-btn btn-got" onclick="cardAnswer(true)">😊 Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== QUIZ SCREEN ========== -->
+<div class="screen" id="screen-quiz">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goToScreen('home')">←</button>
+    <div class="top-bar-title">Quiz</div>
+    <div class="top-bar-right" id="qz-counter">1 / 10</div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="qz-progress" style="width:10%"></div></div>
+  </div>
+  <div class="quiz-area">
+    <div class="quiz-prompt">
+      <div class="quiz-label">這個單字是什麼意思？</div>
+      <div class="quiz-word" id="qz-word"></div>
+      <div class="quiz-phonetic" id="qz-phonetic"></div>
+    </div>
+    <div class="quiz-options" id="qz-options"></div>
+  </div>
+</div>
+
+<!-- ========== RESULTS SCREEN ========== -->
+<div class="screen" id="screen-results">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goToScreen('home')">←</button>
+    <div class="top-bar-title">Results</div>
+    <div class="top-bar-right"></div>
+  </div>
+  <div class="results-area">
+    <div class="results-circle">
+      <svg viewBox="0 0 150 150">
+        <circle class="track" cx="75" cy="75" r="70"/>
+        <circle class="fill-circle" id="results-ring" cx="75" cy="75" r="70" stroke-dashoffset="440"/>
+      </svg>
+      <div class="results-score" id="results-pct">0%</div>
+      <div class="results-label">正確率</div>
+    </div>
+    <div class="results-msg" id="results-msg"></div>
+    <div class="results-sub" id="results-sub"></div>
+    <div class="results-btns">
+      <button class="result-btn secondary" onclick="goToScreen('home')">Home</button>
+      <button class="result-btn primary" id="results-retry">Try Again</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+//  DATA: Built-in dictionary (expandable)
+// ============================================================
+const DICTIONARY = {
+  "abandon": { phonetic: "/əˈbændən/", pos: "verb", meanings: [{ en: "To give up completely; to leave behind.", zh: "放棄；遺棄", example: "They had to abandon the project due to lack of funds.", exampleZh: "他們因為缺乏資金而不得不放棄這個計畫。", example2: "The crew abandoned the sinking ship.", example2Zh: "船員們棄船逃生。" }] },
+  "benefit": { phonetic: "/ˈbɛnɪfɪt/", pos: "noun", meanings: [{ en: "An advantage or good result from something.", zh: "好處；利益", example: "Exercise has many health benefits.", exampleZh: "運動有許多健康上的好處。", example2: "One benefit of the job is free parking.", example2Zh: "這份工作的好處之一是免費停車。" }] },
+  "confirm": { phonetic: "/kənˈfɜːrm/", pos: "verb", meanings: [{ en: "To establish the truth or correctness of something.", zh: "確認；證實", example: "Please confirm your reservation by email.", exampleZh: "請透過電子郵件確認您的預訂。", example2: "The test results confirmed our theory.", example2Zh: "測試結果證實了我們的理論。" }] },
+  "demand": { phonetic: "/dɪˈmænd/", pos: "noun / verb", meanings: [{ en: "A strong request or need for something.", zh: "需求；要求", example: "There is a high demand for skilled workers.", exampleZh: "市場對技術工人有很高的需求。", example2: "She demanded an explanation from her boss.", example2Zh: "她要求老闆給個解釋。" }] },
+  "establish": { phonetic: "/ɪˈstæblɪʃ/", pos: "verb", meanings: [{ en: "To set up or create something on a permanent basis.", zh: "建立；設立", example: "She established her own company in 2020.", exampleZh: "她在 2020 年創立了自己的公司。", example2: "We need to establish clear rules first.", example2Zh: "我們需要先建立明確的規則。" }] },
+  "familiar": { phonetic: "/fəˈmɪljər/", pos: "adj", meanings: [{ en: "Well known from long experience; easily recognized.", zh: "熟悉的", example: "This place looks familiar to me.", exampleZh: "這個地方看起來讓我很熟悉。", example2: "Are you familiar with this software?", example2Zh: "你熟悉這個軟體嗎？" }] },
+  "generate": { phonetic: "/ˈdʒɛnəreɪt/", pos: "verb", meanings: [{ en: "To produce or create something.", zh: "產生；生成", example: "Solar panels generate clean electricity.", exampleZh: "太陽能板能產生乾淨的電力。", example2: "The new policy generated a lot of debate.", example2Zh: "新政策引發了很多討論。" }] },
+  "hesitate": { phonetic: "/ˈhɛzɪteɪt/", pos: "verb", meanings: [{ en: "To pause before doing something, often due to uncertainty.", zh: "猶豫；遲疑", example: "Don't hesitate to ask if you need help.", exampleZh: "如果你需要幫忙，不要猶豫儘管問。", example2: "He hesitated before answering the question.", example2Zh: "他在回答問題之前猶豫了一下。" }] },
+  "indicate": { phonetic: "/ˈɪndɪkeɪt/", pos: "verb", meanings: [{ en: "To point out or show something.", zh: "指出；表明", example: "Studies indicate a strong correlation.", exampleZh: "研究指出兩者之間有很強的關聯。", example2: "The sign indicates the exit is on the left.", example2Zh: "標誌指出出口在左邊。" }] },
+  "justify": { phonetic: "/ˈdʒʌstɪfaɪ/", pos: "verb", meanings: [{ en: "To show or prove to be right or reasonable.", zh: "證明…正當", example: "How can you justify such a high price?", exampleZh: "你怎麼能證明這麼高的價格是合理的？", example2: "Nothing can justify violence against children.", example2Zh: "沒有任何理由能為傷害兒童的暴力辯護。" }] },
+  "analyze": { phonetic: "/ˈænəlaɪz/", pos: "verb", meanings: [{ en: "To examine something in detail to understand it.", zh: "分析", example: "We need to analyze the data carefully.", exampleZh: "我們需要仔細分析這些數據。", example2: "The doctor analyzed the blood test results.", example2Zh: "醫生分析了血液檢查結果。" }] },
+  "concept": { phonetic: "/ˈkɑːnsɛpt/", pos: "noun", meanings: [{ en: "An abstract idea or general notion.", zh: "概念；觀念", example: "The concept is easy to understand.", exampleZh: "這個概念很容易理解。", example2: "She introduced a new concept for the product.", example2Zh: "她為產品提出了一個新概念。" }] },
+  "efficient": { phonetic: "/ɪˈfɪʃənt/", pos: "adj", meanings: [{ en: "Achieving maximum results with minimum effort or waste.", zh: "有效率的", example: "This is a more efficient process.", exampleZh: "這是一個更有效率的流程。", example2: "Electric cars are more energy efficient.", example2Zh: "電動車的能源效率更高。" }] },
+  "invest": { phonetic: "/ɪnˈvɛst/", pos: "verb", meanings: [{ en: "To put money into something to earn a profit.", zh: "投資", example: "She decided to invest in real estate.", exampleZh: "她決定投資房地產。", example2: "You should invest time in learning new skills.", example2Zh: "你應該投入時間學習新技能。" }] },
+  "negotiate": { phonetic: "/nɪˈɡoʊʃieɪt/", pos: "verb", meanings: [{ en: "To discuss something to reach an agreement.", zh: "談判；協商", example: "We need to negotiate the contract terms.", exampleZh: "我們需要協商合約條款。", example2: "They negotiated a better salary for the team.", example2Zh: "他們為團隊談到了更好的薪資。" }] },
+  "strategy": { phonetic: "/ˈstrætədʒi/", pos: "noun", meanings: [{ en: "A plan of action designed to achieve a long-term goal.", zh: "策略；戰略", example: "We need a new marketing strategy.", exampleZh: "我們需要一個新的行銷策略。", example2: "What's your strategy for the exam?", example2Zh: "你考試的策略是什麼？" }] },
+  "achieve": { phonetic: "/əˈtʃiːv/", pos: "verb", meanings: [{ en: "To successfully reach a desired goal through effort.", zh: "達成；實現", example: "She achieved her goal of running a marathon.", exampleZh: "她達成了跑完馬拉松的目標。", example2: "Hard work is needed to achieve success.", example2Zh: "要取得成功需要努力。" }] },
+  "communicate": { phonetic: "/kəˈmjuːnɪkeɪt/", pos: "verb", meanings: [{ en: "To share or exchange information with others.", zh: "溝通；傳達", example: "It's important to communicate clearly.", exampleZh: "清楚地溝通是很重要的。", example2: "We communicate mostly through email.", example2Zh: "我們主要透過電子郵件溝通。" }] },
+  "determine": { phonetic: "/dɪˈtɜːrmɪn/", pos: "verb", meanings: [{ en: "To find out or decide something with certainty.", zh: "決定；確定", example: "We need to determine the cause of the problem.", exampleZh: "我們需要確定問題的原因。", example2: "Your attitude determines your success.", example2Zh: "你的態度決定你的成就。" }] },
+  "essential": { phonetic: "/ɪˈsɛnʃəl/", pos: "adj", meanings: [{ en: "Absolutely necessary; extremely important.", zh: "必要的；基本的", example: "Water is essential for life.", exampleZh: "水是生命不可或缺的。", example2: "Sleep is essential for good health.", example2Zh: "睡眠對健康至關重要。" }] },
+};
+
+// ============================================================
+//  STATE (with localStorage persistence)
+// ============================================================
+let wordBank = [];
+try { wordBank = JSON.parse(localStorage.getItem('vocabflow_bank') || '[]'); } catch(e) { wordBank = []; }
+
+function saveBank() {
+  try { localStorage.setItem('vocabflow_bank', JSON.stringify(wordBank)); } catch(e) {}
+}
+
+let currentDictWord = null;
+let fcIndex = 0, fcWords = [], fcCorrect = 0;
+let qzIndex = 0, qzWords = [], qzCorrect = 0, qzAnswered = false;
+let lastMode = 'flashcard';
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function goToScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  if (id === 'home') renderRecent();
+  if (id === 'bank') renderBank();
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ============================================================
+//  SEARCH
+// ============================================================
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const w = searchInput.value.trim().toLowerCase();
+    if (w) lookupWord(w);
+  }
+});
+
+const dictSearch = document.getElementById('dict-search');
+dictSearch.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const w = dictSearch.value.trim().toLowerCase();
+    if (w) lookupWord(w);
+  }
+});
+
+async function lookupWord(word) {
+  searchInput.value = '';
+  dictSearch.value = '';
+  goToScreen('dict');
+
+  // Show loading state
+  document.getElementById('dict-save-btn').style.display = 'none';
+  document.getElementById('dict-content').innerHTML = `
+    <div class="nf-container">
+      <div class="nf-icon" style="animation: pop 0.8s ease infinite alternate;">📖</div>
+      <div class="nf-title">查詢中...</div>
+      <div class="nf-subtitle">正在搜尋「${word}」</div>
+    </div>
+  `;
+
+  // Check built-in dictionary first (already has complete data)
+  const builtIn = DICTIONARY[word];
+  if (builtIn && builtIn.meanings[0].zh) {
+    currentDictWord = { word, ...builtIn };
+    renderDictPage(currentDictWord);
+    return;
+  }
+
+  if (!GOOGLE_API_KEY || GOOGLE_API_KEY === '在這裡貼上你的API_KEY') {
+    showToast('⚠️ 請先在程式碼中填入 API key');
+    renderNotFound(word, []);
+    return;
+  }
+
+  // Launch BOTH API calls at the same time (parallel)
+  const audioPromise = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
+    .then(res => res.ok ? res.json() : null)
+    .catch(() => null);
+
+  const geminiPromise = geminiDictionary(word);
+
+  // Wait for both to finish
+  const [audioData, geminiEntry] = await Promise.all([audioPromise, geminiPromise]);
+
+  // Extract audio info from Free Dictionary
+  let phonetic = '', audioUS = '', audioUK = '';
+  if (audioData && audioData[0]) {
+    const d = audioData[0];
+    phonetic = d.phonetic || '';
+    if (d.phonetics) {
+      d.phonetics.forEach(p => {
+        if (p.text && !phonetic) phonetic = p.text;
+        if (p.audio) {
+          const url = p.audio.startsWith('//') ? 'https:' + p.audio : p.audio;
+          if (url.includes('-us') || url.includes('en-us')) audioUS = url;
+          else if (url.includes('-uk') || url.includes('-gb')) audioUK = url;
+          else if (!audioUS) audioUS = url;
+        }
+      });
+    }
+  }
+
+  // Merge Gemini content with audio data
+  if (geminiEntry) {
+    geminiEntry.phonetic = phonetic || geminiEntry.phonetic || '';
+    geminiEntry.audioUS = audioUS;
+    geminiEntry.audioUK = audioUK;
+    DICTIONARY[word] = geminiEntry;
+    currentDictWord = { word, ...geminiEntry };
+    renderDictPage(currentDictWord);
+    return;
+  }
+
+  // Fallback: show not found
+  const allKnown = Object.keys(DICTIONARY);
+  const suggestions = fuzzyMatch(word, allKnown, 3);
+  renderNotFound(word, suggestions);
+}
+
+// ============================================================
+//  GEMINI API — 產生完整字典內容（像牛津字典）
+//  ▼▼▼ 把你的 Google API key 貼在下面這行的引號裡面 ▼▼▼
+// ============================================================
+const GOOGLE_API_KEY = 'AIzaSyDyHKHEVCqv2HhLMIEiGQ6Imp_XvMas0Fw';
+//  ▲▲▲ 同一把 AIzaS... key，用於 Gemini ▲▲▲
+// ============================================================
+
+async function geminiDictionary(word) {
+  showToast('🔄 正在查詢字典...');
+
+  const prompt = `你是一本專業的繁體中文英語字典（類似牛津英漢字典）。請為英文單字「${word}」產出完整的字典條目。
+
+格式要求：
+- pos：詞性（用英文，如 noun / verb / adjective）
+- meanings：最多 4 個常用義項，每個包含：
+  - zh：簡潔中文意思（像字典：社會、社會制度、社團）
+  - en：簡短英文定義（一句話）
+  - example：一個英文例句（自然、實用的句子）
+  - exampleZh：例句的繁體中文翻譯
+
+重要規則：
+- 只收錄常用義項，冷門的不要
+- 中文意思要精簡，像字典一樣（2-6個字）
+- 例句要實用、日常化
+- 回覆純 JSON，不要任何其他文字：
+
+{"pos":"noun / verb","meanings":[{"zh":"社會","en":"The community of people living in a particular country or region.","example":"Modern society faces many challenges.","exampleZh":"現代社會面臨許多挑戰。"}]}`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': GOOGLE_API_KEY
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 2000 }
+    })
+  });
+
+  if (!res.ok) {
+    console.log('Gemini error:', res.status);
+    showToast('查詢失敗 (' + res.status + ')');
+    return null;
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('Gemini dictionary response:', rawText);
+
+  if (!rawText) {
+    showToast('Gemini 沒有回傳內容');
+    return null;
+  }
+
+  // Parse JSON from response
+  let cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objMatch) cleaned = objMatch[0];
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (e) {
+    console.log('JSON parse error:', e, 'Raw:', cleaned);
+    showToast('字典格式錯誤，請重試');
+    return null;
+  }
+
+  showToast('✓ 查詢完成');
+
+  return {
+    phonetic: parsed.phonetic || '',
+    pos: parsed.pos || '',
+    meanings: (parsed.meanings || []).slice(0, 4),
+    audioUS: '',
+    audioUK: '',
+  };
+}
+
+// Keep translateWord as a manual re-translate button
+async function translateWord(wordData) {
+  if (!GOOGLE_API_KEY || GOOGLE_API_KEY === '在這裡貼上你的API_KEY') {
+    showToast('⚠️ 請先在程式碼中填入 Google API key');
+    return;
+  }
+  const entry = await geminiDictionary(wordData.word);
+  if (entry) {
+    DICTIONARY[wordData.word] = entry;
+    currentDictWord = { word: wordData.word, ...entry };
+
+    const bankItem = wordBank.find(w => w.word === wordData.word);
+    if (bankItem) {
+      Object.assign(bankItem, entry);
+      saveBank();
+    }
+
+    renderDictPage(currentDictWord);
+  }
+}
+
+// Levenshtein distance for fuzzy matching
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function fuzzyMatch(input, wordList, maxResults) {
+  const scored = wordList.map(w => ({
+    word: w,
+    dist: levenshtein(input.toLowerCase(), w.toLowerCase()),
+  }));
+  // Only suggest words within reasonable edit distance
+  const maxDist = Math.max(2, Math.floor(input.length * 0.5));
+  return scored
+    .filter(s => s.dist <= maxDist && s.dist > 0)
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, maxResults)
+    .map(s => s.word);
+}
+
+function renderNotFound(input, suggestions) {
+  const saveBar = document.getElementById('dict-save-btn');
+  saveBar.style.display = 'none';
+
+  let suggestionsHTML = '';
+  if (suggestions.length > 0) {
+    suggestionsHTML = `
+      <div class="nf-suggest-label">你是不是要找：</div>
+      <div class="nf-suggest-list">
+        ${suggestions.map(w => {
+          const entry = DICTIONARY[w];
+          return `
+            <button class="nf-suggest-item" onclick="lookupWord('${w}')">
+              <div class="nf-suggest-word">${w}</div>
+              <div class="nf-suggest-meaning">${entry.meanings[0].zh}</div>
+              <div class="nf-suggest-arrow">→</div>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  document.getElementById('dict-content').innerHTML = `
+    <div class="nf-container">
+      <div class="nf-icon">🔍</div>
+      <div class="nf-title">找不到「<span class="nf-input-word">${input}</span>」</div>
+      <div class="nf-subtitle">這個單字不在目前的字典中</div>
+      ${suggestionsHTML}
+      <button class="nf-back-btn" onclick="goToScreen('home')">Back to Search</button>
+    </div>
+  `;
+}
+
+// ============================================================
+//  DICTIONARY PAGE
+// ============================================================
+function renderDictPage(data) {
+  document.getElementById('dict-save-btn').style.display = '';
+
+  const saved = wordBank.some(w => w.word === data.word);
+  const btn = document.getElementById('dict-save-btn');
+  const btnText = document.getElementById('save-btn-text');
+  btn.className = 'dict-save-btn ' + (saved ? 'saved' : 'save');
+  btnText.textContent = saved ? '✓ Saved' : '＋ Add to Word Bank';
+
+  const hasAnyChinese = data.meanings.some(m => m.zh);
+
+  let meaningsHTML = data.meanings.map((m, idx) => `
+    <div class="dict-meaning-item">
+      ${m.en ? `<div class="dict-meaning-en">${m.en}</div>` : ''}
+      <div class="dict-zh-row">
+        ${m.zh
+          ? `<div class="dict-meaning-zh" onclick="editField(this, ${idx}, 'zh')" title="Click to edit">${m.zh}</div>`
+          : `<div class="dict-meaning-zh dict-zh-placeholder" onclick="editField(this, ${idx}, 'zh')" title="Click to add Chinese">＋ Add Chinese</div>`
+        }
+      </div>
+      ${m.example ? `
+        <div class="dict-example-block">
+          <div class="dict-example">${m.example}</div>
+          ${m.exampleZh
+            ? `<div class="dict-example-zh" onclick="editField(this, ${idx}, 'exampleZh')" title="Click to edit">${m.exampleZh}</div>`
+            : `<div class="dict-example-zh dict-zh-placeholder" onclick="editField(this, ${idx}, 'exampleZh')" title="Click to add translation">＋ Add Translation</div>`
+          }
+        </div>
+      ` : ''}
+      ${m.example2 ? `
+        <div class="dict-example-block" style="margin-top:6px;">
+          <div class="dict-example">${m.example2}</div>
+          ${m.example2Zh
+            ? `<div class="dict-example-zh" onclick="editField(this, ${idx}, 'example2Zh')" title="Click to edit">${m.example2Zh}</div>`
+            : `<div class="dict-example-zh dict-zh-placeholder" onclick="editField(this, ${idx}, 'example2Zh')" title="Click to add translation">＋ Add Translation</div>`
+          }
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+
+  document.getElementById('dict-content').innerHTML = `
+    <div class="dict-word-section">
+      <div class="dict-word">${data.word}</div>
+      <div class="dict-phonetic-row">
+        <span class="dict-phonetic">${data.phonetic}</span>
+        <div class="dict-speak-group">
+          <button class="dict-speak" id="btn-us" onclick="speak('${data.word}','en-US',this,'${data.audioUS || ''}')">🔊 US</button>
+          <button class="dict-speak" id="btn-uk" onclick="speak('${data.word}','en-GB',this,'${data.audioUK || ''}')">🔊 UK</button>
+        </div>
+      </div>
+      <span class="dict-pos">${data.pos}</span>
+      <div class="dict-translate-status" style="display:none;font-size:13px;color:var(--accent);margin-top:10px;"></div>
+      ${!hasAnyChinese ? `<button class="dict-translate-btn" onclick="translateWord(currentDictWord)">🔄 Auto Translate</button>` : ''}
+      <div class="dict-meanings">${meaningsHTML}</div>
+    </div>
+  `;
+}
+
+// Edit a Chinese field inline
+function editField(el, meaningIdx, field) {
+  const current = currentDictWord.meanings[meaningIdx][field] || '';
+  const isPlaceholder = el.classList.contains('dict-zh-placeholder');
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'dict-edit-input';
+  input.value = isPlaceholder ? '' : current;
+  input.placeholder = field.includes('example') ? 'Enter translation' : 'Enter Chinese meaning';
+
+  el.replaceWith(input);
+  input.focus();
+
+  const save = () => {
+    const val = input.value.trim();
+    currentDictWord.meanings[meaningIdx][field] = val;
+
+    // Update DICTIONARY cache
+    const dictEntry = DICTIONARY[currentDictWord.word];
+    if (dictEntry && dictEntry.meanings[meaningIdx]) {
+      dictEntry.meanings[meaningIdx][field] = val;
+    }
+
+    // Update wordBank if saved
+    const bankItem = wordBank.find(w => w.word === currentDictWord.word);
+    if (bankItem && bankItem.meanings[meaningIdx]) {
+      bankItem.meanings[meaningIdx][field] = val;
+      saveBank();
+    }
+
+    renderDictPage(currentDictWord);
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+}
+
+function toggleSaveWord() {
+  if (!currentDictWord) return;
+  const idx = wordBank.findIndex(w => w.word === currentDictWord.word);
+  if (idx >= 0) {
+    wordBank.splice(idx, 1);
+    showToast('Removed from Word Bank');
+  } else {
+    wordBank.push({
+      ...currentDictWord,
+      level: 'new',
+      addedAt: Date.now(),
+    });
+    showToast('✓ Added to Word Bank!');
+  }
+  saveBank();
+  renderDictPage(currentDictWord);
+}
+
+// ============================================================
+//  TEXT TO SPEECH — 3-tier: API audio → Google TTS → speechSynthesis
+// ============================================================
+let currentAudio = null;
+
+function speak(word, lang, btnEl, audioUrl) {
+  // Stop any current playback
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+
+  if (btnEl) btnEl.classList.add('playing');
+  const done = () => { if (btnEl) btnEl.classList.remove('playing'); };
+
+  // Tier 1: Use real audio file from dictionary API (best quality)
+  if (audioUrl) {
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.onended = () => { done(); currentAudio = null; };
+    audio.onerror = () => { done(); currentAudio = null; speakTTS(word, lang, btnEl); };
+    audio.play().catch(() => { done(); speakTTS(word, lang, btnEl); });
+    return;
+  }
+
+  // Tier 2: Google Translate TTS
+  speakTTS(word, lang, btnEl);
+}
+
+function speakTTS(word, lang, btnEl) {
+  if (btnEl) btnEl.classList.add('playing');
+  const done = () => { if (btnEl) btnEl.classList.remove('playing'); };
+
+  const ttsLang = lang === 'en-GB' ? 'en-GB' : 'en-US';
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(word)}&tl=${ttsLang}&client=tw-ob`;
+
+  const audio = new Audio(url);
+  currentAudio = audio;
+
+  audio.onended = () => { done(); currentAudio = null; };
+  audio.onerror = () => { done(); currentAudio = null; speakFallback(word, ttsLang, btnEl); };
+  audio.play().catch(() => { done(); speakFallback(word, ttsLang, btnEl); });
+}
+
+function speakFallback(word, lang, btnEl) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+
+  if (btnEl) btnEl.classList.add('playing');
+  const done = () => { if (btnEl) btnEl.classList.remove('playing'); };
+
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = lang;
+  u.rate = 0.9;
+
+  const voices = speechSynthesis.getVoices();
+  const match = voices.find(v => v.lang.replace('_','-') === lang);
+  if (match) u.voice = match;
+
+  u.onend = done;
+  u.onerror = done;
+  setTimeout(done, 3000);
+  speechSynthesis.speak(u);
+}
+
+// Pre-warm speechSynthesis for fallback
+if ('speechSynthesis' in window) {
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+}
+
+// ============================================================
+//  RECENT LIST (HOME)
+// ============================================================
+function renderRecent() {
+  const container = document.getElementById('recent-list');
+  const section = document.getElementById('home-recent');
+
+  if (wordBank.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  const recent = [...wordBank].sort((a, b) => b.addedAt - a.addedAt).slice(0, 5);
+  container.innerHTML = recent.map(w => {
+    const m = w.meanings[0];
+    const display = m.zh || (m.en && m.en.length > 25 ? m.en.slice(0,25) + '...' : m.en) || '';
+    return `
+    <div class="recent-item" onclick="lookupWord('${w.word}')">
+      <span class="recent-dot ${w.level === 'new' ? 'dot-new' : 'dot-review'}"></span>
+      <span class="recent-word">${w.word}</span>
+      <span class="recent-meaning">${display}</span>
+    </div>
+  `}).join('');
+}
+
+// ============================================================
+//  WORD BANK
+// ============================================================
+function renderBank() {
+  const total = wordBank.length;
+  const learning = wordBank.filter(w => w.level === 'new' || w.level === 'learning').length;
+  const mastered = wordBank.filter(w => w.level === 'mastered').length;
+
+  document.getElementById('bank-count').textContent = total + ' 字';
+  document.getElementById('bs-total').textContent = total;
+  document.getElementById('bs-learning').textContent = learning;
+  document.getElementById('bs-mastered').textContent = mastered;
+
+  const list = document.getElementById('bank-word-list');
+  if (total === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📖</div>
+        <p>No words saved yet.<br>Search and add words to get started!</p>
+      </div>
+    `;
+    return;
+  }
+
+  const levelLabel = { new: '新字', learning: '學習中', mastered: '已掌握' };
+  const levelClass = { new: 'level-new', learning: 'level-learning', mastered: 'level-mastered' };
+
+  list.innerHTML = [...wordBank].sort((a, b) => b.addedAt - a.addedAt).map(w => {
+    const display = w.meanings[0].zh || w.meanings[0].en || '';
+    const displayShort = display.length > 20 ? display.slice(0, 20) + '...' : display;
+    return `
+    <div class="bank-word-item" onclick="lookupWord('${w.word}')">
+      <div>
+        <div class="bw-word">${w.word}</div>
+        <div class="bw-meaning">${displayShort}</div>
+      </div>
+      <div class="bw-right">
+        <span class="bw-level ${levelClass[w.level]}">${levelLabel[w.level]}</span>
+      </div>
+    </div>
+  `}).join('');
+}
+
+// ============================================================
+//  FLASHCARD
+// ============================================================
+function startFlashcard() {
+  lastMode = 'flashcard';
+  let source;
+  if (wordBank.length >= 1) {
+    source = wordBank;
+  } else {
+    source = Object.entries(DICTIONARY).slice(0, 10).map(([word, data]) => ({ word, ...data, level: 'new' }));
+  }
+  fcWords = shuffle([...source]);
+  fcIndex = 0;
+  fcCorrect = 0;
+  goToScreen('flashcard');
+  renderFlashcard();
+}
+
+function renderFlashcard() {
+  const w = fcWords[fcIndex];
+  const m = w.meanings[0];
+  document.getElementById('fc-word').textContent = w.word;
+  document.getElementById('fc-phonetic').textContent = w.phonetic;
+  document.getElementById('fc-pos').textContent = w.pos;
+  document.getElementById('fc-meaning-en').textContent = m.en || '';
+  document.getElementById('fc-meaning-zh').textContent = m.zh || '';
+
+  // Build examples HTML
+  let exHTML = '';
+  if (m.example) {
+    exHTML += `<div class="card-example-item">
+      <div class="card-example-en">${m.example}</div>
+      ${m.exampleZh ? `<div class="card-example-zh-text">${m.exampleZh}</div>` : ''}
+    </div>`;
+  }
+  if (m.example2) {
+    exHTML += `<div class="card-example-item">
+      <div class="card-example-en">${m.example2}</div>
+      ${m.example2Zh ? `<div class="card-example-zh-text">${m.example2Zh}</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('fc-examples').innerHTML = exHTML;
+
+  document.getElementById('fc-counter').textContent = (fcIndex + 1) + ' / ' + fcWords.length;
+  document.getElementById('fc-progress').style.width = ((fcIndex + 1) / fcWords.length * 100) + '%';
+  document.getElementById('flashcard').classList.remove('flipped');
+}
+
+function flipCard() {
+  document.getElementById('flashcard').classList.toggle('flipped');
+}
+
+function cardAnswer(known) {
+  if (known) {
+    fcCorrect++;
+    updateWordLevel(fcWords[fcIndex].word, 'up');
+  } else {
+    updateWordLevel(fcWords[fcIndex].word, 'down');
+  }
+  fcIndex++;
+  if (fcIndex >= fcWords.length) {
+    showResults(fcCorrect, fcWords.length, 'flashcard');
+  } else {
+    renderFlashcard();
+  }
+}
+
+// ============================================================
+//  QUIZ
+// ============================================================
+function startQuiz() {
+  lastMode = 'quiz';
+  let source;
+  if (wordBank.length >= 4) {
+    source = wordBank;
+  } else if (wordBank.length >= 1) {
+    // Pad with built-in words to reach 4
+    const builtIn = Object.entries(DICTIONARY).map(([word, data]) => ({ word, ...data, level: 'new' }));
+    const extra = builtIn.filter(b => !wordBank.some(w => w.word === b.word));
+    source = [...wordBank, ...extra].slice(0, Math.max(10, wordBank.length));
+  } else {
+    source = Object.entries(DICTIONARY).slice(0, 10).map(([word, data]) => ({ word, ...data, level: 'new' }));
+  }
+  if (source.length < 4) {
+    showToast('Need at least 4 words for quiz');
+    return;
+  }
+  qzWords = shuffle([...source]);
+  qzIndex = 0;
+  qzCorrect = 0;
+  goToScreen('quiz');
+  renderQuiz();
+}
+
+// Helper: get display text for a meaning (prefer Chinese, fallback to English)
+function getMeaningDisplay(m) {
+  return m.zh || m.en || 'No definition';
+}
+
+function renderQuiz() {
+  qzAnswered = false;
+  const w = qzWords[qzIndex];
+  document.getElementById('qz-word').textContent = w.word;
+  document.getElementById('qz-phonetic').textContent = w.phonetic;
+  document.getElementById('qz-counter').textContent = (qzIndex + 1) + ' / ' + qzWords.length;
+  document.getElementById('qz-progress').style.width = ((qzIndex + 1) / qzWords.length * 100) + '%';
+
+  const correctAnswer = getMeaningDisplay(w.meanings[0]);
+
+  // Build all possible meanings pool (from both wordBank and built-in)
+  const allSources = [...wordBank, ...Object.values(DICTIONARY).map(d => ({ meanings: d.meanings }))];
+  const allMeanings = [...new Set(allSources.map(x => getMeaningDisplay(x.meanings[0])))];
+
+  let options = [correctAnswer];
+  while (options.length < 4 && allMeanings.length >= 4) {
+    const pick = allMeanings[Math.floor(Math.random() * allMeanings.length)];
+    if (!options.includes(pick)) options.push(pick);
+  }
+  options = shuffle(options);
+
+  const container = document.getElementById('qz-options');
+  const keys = ['A', 'B', 'C', 'D'];
+  container.innerHTML = options.map((opt, i) => `
+    <button class="quiz-option" onclick="quizAnswer(this, ${opt === correctAnswer}, '${correctAnswer.replace(/'/g, "\\'")}')">
+      <span class="option-key">${keys[i]}</span>
+      <span>${opt}</span>
+    </button>
+  `).join('');
+}
+
+function showQuizFeedback(isCorrect) {
+  // Remove any existing feedback
+  document.querySelectorAll('.quiz-feedback').forEach(el => el.remove());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'quiz-feedback ' + (isCorrect ? 'qf-correct' : 'qf-wrong');
+  overlay.innerHTML = `
+    <div class="quiz-feedback-bg"></div>
+    <div class="quiz-feedback-icon">${isCorrect ? '🎉' : '😢'}</div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 900);
+}
+
+function quizAnswer(btn, correct, correctMeaning) {
+  if (qzAnswered) return;
+  qzAnswered = true;
+
+  if (correct) {
+    btn.classList.add('correct');
+    qzCorrect++;
+    updateWordLevel(qzWords[qzIndex].word, 'up');
+    showQuizFeedback(true);
+  } else {
+    btn.classList.add('wrong');
+    updateWordLevel(qzWords[qzIndex].word, 'down');
+    showQuizFeedback(false);
+    document.querySelectorAll('.quiz-option').forEach(b => {
+      if (b.querySelector('span:last-child').textContent === correctMeaning) b.classList.add('correct');
+      else if (!b.classList.contains('wrong')) b.classList.add('disabled');
+    });
+  }
+
+  setTimeout(() => {
+    qzIndex++;
+    if (qzIndex >= qzWords.length) {
+      showResults(qzCorrect, qzWords.length, 'quiz');
+    } else {
+      renderQuiz();
+    }
+  }, 950);
+}
+
+// ============================================================
+//  WORD LEVEL TRACKING
+// ============================================================
+function updateWordLevel(word, direction) {
+  const item = wordBank.find(w => w.word === word);
+  if (!item) return;
+  if (direction === 'up') {
+    if (item.level === 'new') item.level = 'learning';
+    else if (item.level === 'learning') item.level = 'mastered';
+  } else {
+    if (item.level === 'mastered') item.level = 'learning';
+    else item.level = 'new';
+  }
+  saveBank();
+}
+
+// ============================================================
+//  RESULTS
+// ============================================================
+function showResults(correct, total, mode) {
+  goToScreen('results');
+  const pct = Math.round(correct / total * 100);
+  document.getElementById('results-pct').textContent = pct + '%';
+
+  const circumference = 2 * Math.PI * 70;
+  const offset = circumference - (pct / 100) * circumference;
+  const ring = document.getElementById('results-ring');
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = circumference;
+  setTimeout(() => { ring.style.strokeDashoffset = offset; }, 100);
+
+  if (pct >= 80) {
+    document.getElementById('results-msg').textContent = '太厲害了！';
+    document.getElementById('results-sub').textContent = `答對 ${correct}/${total} 題，繼續保持！`;
+  } else if (pct >= 50) {
+    document.getElementById('results-msg').textContent = '繼續加油！';
+    document.getElementById('results-sub').textContent = `答對 ${correct}/${total} 題，再多練習幾次`;
+  } else {
+    document.getElementById('results-msg').textContent = '別灰心！';
+    document.getElementById('results-sub').textContent = `答對 ${correct}/${total} 題，回去用卡片複習一下`;
+  }
+
+  document.getElementById('results-retry').onclick = () => {
+    mode === 'quiz' ? startQuiz() : startFlashcard();
+  };
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+renderRecent();
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
