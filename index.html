@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="VocabFlow">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -202,6 +203,37 @@ body {
 .home-due-banner .due-text b { color: var(--warm); font-size: 20px; }
 .home-due-banner .due-go { font-size: 13px; font-weight: 700; color: var(--warm); }
 .home-due-banner:active { transform: scale(0.98); }
+/* 備份提醒（比待複習低調，不搶主行動） */
+.home-backup-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--bg2);
+  border-radius: var(--radius-sm);
+  padding: 11px 16px; margin: 12px 24px 0;
+  cursor: pointer;
+}
+.home-backup-banner .due-text { flex: 1; font-size: 13px; color: var(--ink3); }
+.home-backup-banner .backup-go { font-size: 13px; font-weight: 600; color: var(--blue); }
+.home-backup-banner:active { background: var(--surface-dim); }
+/* 設定面板的列表列 */
+.set-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 14px 16px;
+  border: 1px solid var(--bg2); border-radius: var(--radius-sm);
+  background: var(--surface); cursor: pointer;
+  font-size: 15px; font-weight: 600; color: var(--ink);
+  font-family: var(--font-zh); text-align: left;
+  transition: all var(--transition);
+}
+.set-row:active { background: var(--surface-dim); transform: scale(0.98); }
+.set-row .set-icon { font-size: 18px; }
+.set-row .set-sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink3); margin-top: 2px; }
+.import-area {
+  width: 100%; min-height: 90px; margin-top: 10px;
+  padding: 10px 12px; border: 2px solid var(--bg2); border-radius: var(--radius-sm);
+  font-family: var(--font-en); font-size: 12px;
+  background: var(--surface); color: var(--ink); outline: none; resize: vertical;
+}
+.import-area:focus { border-color: var(--accent); }
 /* 回合選項按鈕 */
 .session-opt {
   display: flex; align-items: center; justify-content: space-between;
@@ -952,6 +984,12 @@ body {
       <span class="due-go">開始 ›</span>
     </div>
 
+    <div class="home-backup-banner" id="home-backup-banner" style="display:none;" onclick="openSettings()">
+      <span class="due-icon">💾</span>
+      <span class="due-text">你的字庫還沒備份過</span>
+      <span class="backup-go">備份 ›</span>
+    </div>
+
     <div class="home-actions">
       <div class="home-action ha-green" onclick="goToScreen('bank')">
         <div class="home-action-icon">📚</div>
@@ -986,7 +1024,7 @@ body {
     </div>
 
     <div style="flex:1"></div>
-    <div class="home-version" style="text-align:center; padding-bottom:8px;">v2.5 · 0717</div>
+    <div class="home-version" style="text-align:center; padding-bottom:8px;">v2.6 · 0717</div>
   </div>
 
   <div class="bottom-nav">
@@ -1030,6 +1068,7 @@ body {
     <button class="back-btn" onclick="goBack()">←</button>
     <div class="top-bar-title">Word Bank</div>
     <div class="top-bar-right" id="bank-count">0 字</div>
+    <button class="back-btn" onclick="openSettings()" title="設定與備份" style="font-size:18px;">⚙</button>
   </div>
   <div class="bank-content">
     <div class="bank-stats">
@@ -1224,6 +1263,54 @@ body {
   </div>
 </div>
 
+<!-- 設定與備份 -->
+<div id="settings-modal" style="display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; padding:24px;" onclick="if(event.target===this)closeSettings()">
+  <div style="background:var(--surface); border-radius:var(--radius); padding:22px; width:100%; max-width:340px; box-shadow:var(--shadow-lg);">
+    <div style="font-size:17px; font-weight:700; margin-bottom:4px;">設定與備份</div>
+    <div style="font-size:12px; color:var(--ink3); margin-bottom:16px;" id="settings-status"></div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="set-row" onclick="exportBackup()">
+        <span class="set-icon">📤</span>
+        <span>匯出備份<span class="set-sub">存到「檔案」、iCloud，或傳給自己</span></span>
+      </button>
+      <button class="set-row" onclick="openImportModal()">
+        <span class="set-icon">📥</span>
+        <span>匯入備份<span class="set-sub">從檔案或貼上文字還原</span></span>
+      </button>
+      <button class="set-row" onclick="closeSettings(); openApiKeyModal();">
+        <span class="set-icon">🔑</span>
+        <span>更換 API Key<span class="set-sub">Gemini 金鑰只存在這台裝置</span></span>
+      </button>
+    </div>
+    <button onclick="closeSettings()" style="width:100%; margin-top:14px; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--bg2); color:var(--ink2); font-size:14px; font-weight:600; cursor:pointer;">關閉</button>
+  </div>
+</div>
+
+<!-- 匯入備份 -->
+<div id="import-modal" style="display:none; position:fixed; inset:0; z-index:310; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; padding:24px;" onclick="if(event.target===this)closeImportModal()">
+  <div style="background:var(--surface); border-radius:var(--radius); padding:22px; width:100%; max-width:340px; box-shadow:var(--shadow-lg); max-height:86vh; overflow-y:auto;">
+    <div style="font-size:17px; font-weight:700; margin-bottom:4px;">匯入備份</div>
+    <div style="font-size:13px; color:var(--ink3); line-height:1.6; margin-bottom:14px;">選擇備份檔，或把備份內容直接貼在下面。</div>
+
+    <button class="set-row" onclick="document.getElementById('import-file').click()">
+      <span class="set-icon">📁</span><span>選擇備份檔</span>
+    </button>
+    <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
+
+    <textarea class="import-area" id="import-text" placeholder='或貼上備份內容（{"app":"VocabFlow"...）' spellcheck="false"></textarea>
+    <button onclick="handleImportText(document.getElementById('import-text').value)"
+      style="width:100%; margin-top:8px; padding:11px; border:1px solid var(--bg2); border-radius:var(--radius-sm); background:var(--surface); color:var(--ink2); font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-zh);">讀取貼上的內容</button>
+
+    <div id="import-summary" style="margin-top:14px; font-size:14px; font-weight:600; color:var(--accent); text-align:center;"></div>
+    <div id="import-actions" style="display:none; gap:10px; margin-top:12px;">
+      <button onclick="applyImport('merge')" style="flex:1; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-zh);">合併<br><span style="font-size:11px; font-weight:400; opacity:0.85;">保留現有進度</span></button>
+      <button onclick="applyImport('replace')" style="flex:1; padding:12px; border:1px solid var(--red); border-radius:var(--radius-sm); background:var(--red-bg); color:var(--red); font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-zh);">完全取代<br><span style="font-size:11px; font-weight:400; opacity:0.85;">清掉現有字庫</span></button>
+    </div>
+
+    <button onclick="closeImportModal()" style="width:100%; margin-top:14px; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--bg2); color:var(--ink2); font-size:14px; font-weight:600; cursor:pointer;">取消</button>
+  </div>
+</div>
+
 <script>
 // ============================================================
 //  HELPERS: HTML escaping（所有外部資料進 innerHTML 前必經）
@@ -1349,7 +1436,7 @@ function initHistory() {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
-  if (id === 'home') { renderRecent(); updateDueBanner(); renderSpotlight(); }
+  if (id === 'home') { renderRecent(); updateDueBanner(); renderSpotlight(); updateBackupBanner(); }
   if (id === 'bank') renderBank();
 }
 
@@ -1379,7 +1466,7 @@ function goBack() { history.back(); }
 
 // 返回鍵優先關閉開著的彈窗
 function closeOpenModal() {
-  for (const id of ['exit-modal', 'session-modal', 'apikey-modal']) {
+  for (const id of ['import-modal', 'settings-modal', 'exit-modal', 'session-modal', 'apikey-modal']) {
     const el = document.getElementById(id);
     if (el && el.style.display === 'flex') { el.style.display = 'none'; return true; }
   }
@@ -2319,6 +2406,175 @@ function quizAnswer(btn, correct, correctMeaning) {
 }
 
 // ============================================================
+//  備份與還原
+//  手機沒有「檔案總管」的概念，所以匯出走系統分享表單，
+//  由使用者決定存到 iCloud／傳給自己；失敗才退回下載與剪貼簿。
+//  備份檔「不包含」API Key——那是機密，不該跟著檔案流出去。
+// ============================================================
+function openSettings() {
+  const last = Number(localStorage.getItem('vocabflow_last_backup') || 0);
+  document.getElementById('settings-status').textContent = last
+    ? `目前 ${wordBank.length} 個字 · 上次備份 ${fmtSince(last)}`
+    : `目前 ${wordBank.length} 個字 · 還沒備份過`;
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+
+function fmtSince(ts) {
+  const d = Math.floor((Date.now() - ts) / 86400000);
+  if (d <= 0) return '今天';
+  if (d === 1) return '昨天';
+  return `${d} 天前`;
+}
+
+function markBackedUp() {
+  try { localStorage.setItem('vocabflow_last_backup', String(Date.now())); } catch (e) {}
+  updateBackupBanner();
+}
+
+function updateBackupBanner() {
+  const el = document.getElementById('home-backup-banner');
+  if (!el) return;
+  const last = Number(localStorage.getItem('vocabflow_last_backup') || 0);
+  const stale = !last || (Date.now() - last) > 14 * 86400000;
+  el.querySelector('.due-text').textContent = last ? '距離上次備份有一陣子了' : '你的字庫還沒備份過';
+  el.style.display = (wordBank.length >= 20 && stale) ? 'flex' : 'none';
+}
+
+function buildBackup() {
+  return JSON.stringify({
+    app: 'VocabFlow',
+    format: 1,
+    exportedAt: new Date().toISOString(),
+    count: wordBank.length,
+    words: wordBank
+  }, null, 2);
+}
+
+async function exportBackup() {
+  if (wordBank.length === 0) { showToast('字庫還是空的，沒有東西可以備份'); return; }
+  const json = buildBackup();
+  const name = `vocabflow-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+  // 第一順位：系統分享表單（手機上最自然，可存 iCloud／AirDrop／傳給自己）
+  try {
+    const file = new File([json], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'VocabFlow 單字庫備份' });
+      markBackedUp();
+      closeSettings();
+      return;
+    }
+  } catch (e) {
+    // 使用者自己在分享表單按取消：尊重他的選擇，不要再彈下載
+    if (e && e.name === 'AbortError') return;
+  }
+
+  // 第二順位：直接下載檔案（桌面瀏覽器）
+  try {
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    markBackedUp();
+    closeSettings();
+    showToast('✓ 已下載 ' + name);
+    return;
+  } catch (e) {}
+
+  // 保底：複製到剪貼簿，貼到備忘錄也是備份
+  try {
+    await navigator.clipboard.writeText(json);
+    markBackedUp();
+    closeSettings();
+    showToast('✓ 備份內容已複製，貼到備忘錄保存');
+  } catch (e) {
+    showToast('備份失敗，請改用電腦操作');
+  }
+}
+
+let pendingImport = null;
+
+function openImportModal() {
+  pendingImport = null;
+  document.getElementById('import-text').value = '';
+  document.getElementById('import-summary').textContent = '';
+  document.getElementById('import-actions').style.display = 'none';
+  document.getElementById('import-modal').style.display = 'flex';
+}
+function closeImportModal() {
+  document.getElementById('import-modal').style.display = 'none';
+  pendingImport = null;
+}
+
+function parseBackup(text) {
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { throw new Error('內容看起來不完整，請確認整份都複製到了'); }
+  const words = Array.isArray(data) ? data : data.words;   // 也接受純陣列
+  if (!Array.isArray(words)) throw new Error('這不是 VocabFlow 的備份格式');
+  const valid = words.filter(w => w && typeof w.word === 'string' && Array.isArray(w.meanings) && w.meanings.length);
+  if (!valid.length) throw new Error('裡面沒有可用的單字');
+  return valid;
+}
+
+function handleImportText(text) {
+  if (!text || !text.trim()) { showToast('請先選檔案或貼上內容'); return; }
+  try {
+    pendingImport = parseBackup(text);
+    document.getElementById('import-summary').textContent = `讀到 ${pendingImport.length} 個字，要怎麼處理？`;
+    document.getElementById('import-actions').style.display = 'flex';
+  } catch (e) {
+    pendingImport = null;
+    document.getElementById('import-actions').style.display = 'none';
+    document.getElementById('import-summary').textContent = '';
+    showToast('讀取失敗：' + e.message);
+  }
+}
+
+document.getElementById('import-file').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => handleImportText(String(reader.result));
+  reader.onerror = () => showToast('讀取檔案失敗');
+  reader.readAsText(f);
+  e.target.value = '';   // 同一個檔案再選一次也要能觸發
+});
+
+function normalizeEntry(w) {
+  if (!w.level) w.level = 'new';
+  if (!w.addedAt) w.addedAt = Date.now();
+  return ensureSRS(w);
+}
+
+function applyImport(mode) {
+  if (!pendingImport) return;
+  let added = 0, updated = 0;
+
+  if (mode === 'replace') {
+    wordBank = pendingImport.map(normalizeEntry);
+    added = wordBank.length;
+  } else {
+    pendingImport.forEach(inc => {
+      normalizeEntry(inc);
+      const cur = wordBank.find(w => w.word === inc.word);
+      if (!cur) { wordBank.push(inc); added++; return; }
+      // 重複的字：保留學得比較久的那筆進度
+      normalizeEntry(cur);
+      if ((inc.stage || 0) > (cur.stage || 0)) { Object.assign(cur, inc); updated++; }
+    });
+  }
+
+  saveBank();
+  closeImportModal();
+  closeSettings();
+  renderBank(); renderRecent(); updateDueBanner(); renderSpotlight(); updateBackupBanner();
+  showToast(`✓ 匯入完成：新增 ${added} 個${updated ? `、更新 ${updated} 個` : ''}`);
+}
+
+// ============================================================
 //  SPELLING（中翻英拼字）
 // ============================================================
 let spIndex = 0, spWords = [], spTotal = 0, spFirstTry = {}, spAnswered = false;
@@ -2522,6 +2778,7 @@ initHistory();
 renderRecent();
 updateDueBanner();
 renderSpotlight();
+updateBackupBanner();
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
