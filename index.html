@@ -555,6 +555,84 @@ body {
   font-style: normal;
 }
 
+/* ============================
+   3D 筆記區塊
+   ============================ */
+.d3-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-top: 12px;
+  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.4s ease;
+}
+.d3-label {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+  margin-bottom: 12px; color: var(--accent);
+}
+/* 搭配詞：依語法槽位分組 */
+.colloc-group { margin-bottom: 14px; }
+.colloc-group:last-child { margin-bottom: 0; }
+.colloc-pattern {
+  font-size: 12px; font-weight: 600; color: var(--ink3);
+  padding-bottom: 5px; margin-bottom: 7px;
+  border-bottom: 1px dashed var(--bg2);
+}
+.colloc-items { display: flex; flex-wrap: wrap; gap: 7px; }
+.colloc-item {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  background: var(--accent-bg); border: none; cursor: pointer;
+  border-radius: 12px; padding: 7px 13px;
+  font-family: var(--font-en); font-size: 14px; font-weight: 600; color: var(--accent);
+  transition: all var(--transition);
+}
+.colloc-item:active { transform: scale(0.94); background: var(--accent-bg2); }
+.colloc-item .cz {
+  font-family: var(--font-zh); font-size: 11px; font-weight: 400; color: var(--ink3);
+}
+/* 語塊類型標籤（八大公式） */
+.chunk-tag {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 10px;
+  background: var(--warm-bg); color: var(--warm);
+}
+.chunk-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--bg2);
+  cursor: pointer;
+}
+.chunk-row:last-child { border-bottom: none; }
+.chunk-row:active { opacity: 0.6; }
+.chunk-en { font-family: var(--font-en); font-size: 15px; font-weight: 600; color: var(--ink); }
+.chunk-zh { font-size: 12px; color: var(--ink3); margin-top: 1px; }
+/* 語塊模組化變化：程度階梯 */
+.var-step {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; margin-bottom: 7px;
+  background: var(--bg); border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-bg2);
+}
+.var-step:last-child { margin-bottom: 0; }
+.var-rank {
+  font-family: var(--font-en); font-size: 11px; font-weight: 700;
+  color: var(--ink4); flex-shrink: 0; width: 14px;
+}
+.var-en { font-family: var(--font-en); font-size: 14px; font-weight: 600; color: var(--ink); }
+.var-zh { font-size: 12px; color: var(--ink3); margin-left: auto; text-align: right; flex-shrink: 0; }
+/* 語域標記 */
+.register-tag {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 10px; margin-left: 6px;
+}
+.reg-formal { background: var(--blue-bg); color: var(--blue); }
+.reg-neutral { background: var(--bg2); color: var(--ink3); }
+.reg-casual { background: var(--warm-bg); color: var(--warm); }
+.d3-note {
+  font-size: 12px; color: var(--ink2); line-height: 1.6;
+  background: var(--bg); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin-top: 10px;
+}
+
 /* Save to bank button */
 .dict-save-bar {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
@@ -626,6 +704,20 @@ body {
   box-shadow: var(--shadow-sm);
 }
 .bank-word-item:active { background: var(--surface-dim); }
+.bw-grad {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+  border: 1px solid var(--bg2); background: var(--bg);
+  font-size: 15px; cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.bw-grad:active { background: var(--accent-bg); border-color: var(--accent); transform: scale(0.9); }
+.bank-graduated {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 12px; padding: 9px;
+  background: var(--accent-bg); border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; color: var(--accent);
+}
 .bw-word {
   font-family: var(--font-en); font-size: 16px; font-weight: 600;
 }
@@ -1029,7 +1121,7 @@ body {
     </div>
 
     <div style="flex:1"></div>
-    <div class="home-version" style="text-align:center; padding-bottom:8px;">v2.7 · 0809</div>
+    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.0 · 0809</div>
   </div>
 
   <div class="bottom-nav">
@@ -1096,6 +1188,7 @@ body {
       <button class="bank-action-btn secondary" onclick="openSessionPicker('quiz')">✍️ Quiz</button>
     </div>
 
+    <div class="bank-graduated" id="bank-graduated" style="display:none;"></div>
     <div class="bank-word-list" id="bank-word-list"></div>
   </div>
   <div class="bottom-nav">
@@ -1264,6 +1357,19 @@ body {
     <div style="display:flex; gap:10px;">
       <button onclick="confirmExit()" style="flex:1; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--bg2); color:var(--ink2); font-size:14px; font-weight:600; cursor:pointer;">離開</button>
       <button onclick="closeExitModal()" style="flex:1; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer;">繼續學習</button>
+    </div>
+  </div>
+</div>
+
+<!-- 畢業確認 -->
+<div id="grad-modal" style="display:none; position:fixed; inset:0; z-index:305; background:rgba(0,0,0,0.45); align-items:center; justify-content:center; padding:24px;" onclick="if(event.target===this)closeGraduate()">
+  <div style="background:var(--surface); border-radius:var(--radius); padding:24px; width:100%; max-width:320px; box-shadow:var(--shadow-lg); text-align:center;">
+    <div style="font-size:34px; margin-bottom:8px;">🎓</div>
+    <div style="font-size:17px; font-weight:700; margin-bottom:6px;">已經記熟 <span id="grad-word" style="font-family:var(--font-en);"></span> 了？</div>
+    <div style="font-size:13px; color:var(--ink3); line-height:1.6; margin-bottom:18px;">會移出字庫、不再排複習，並計入「已精通」。<br>之後想複習，再查一次就能加回來。</div>
+    <div style="display:flex; gap:10px;">
+      <button onclick="closeGraduate()" style="flex:1; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--bg2); color:var(--ink2); font-size:14px; font-weight:600; cursor:pointer;">還沒</button>
+      <button onclick="confirmGraduate()" style="flex:1; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer;">記熟了</button>
     </div>
   </div>
 </div>
@@ -1505,7 +1611,7 @@ function goBack() { history.back(); }
 
 // 返回鍵優先關閉開著的彈窗
 function closeOpenModal() {
-  for (const id of ['import-modal', 'settings-modal', 'exit-modal', 'session-modal', 'apikey-modal']) {
+  for (const id of ['import-modal', 'grad-modal', 'settings-modal', 'exit-modal', 'session-modal', 'apikey-modal']) {
     const el = document.getElementById(id);
     if (el && el.style.display === 'flex') { el.style.display = 'none'; return true; }
   }
@@ -1581,9 +1687,9 @@ dictSearch.addEventListener('keydown', e => {
 
 async function lookupWord(word) {
   word = String(word || '').trim().toLowerCase();
-  // 只接受英文單字（含連字號、撇號），避免亂打也去燒 API
-  if (!/^[a-z][a-z\-']{0,29}$/.test(word)) {
-    showToast('請輸入英文單字');
+  // 接受單字，也接受語塊（片語、句型框架）。仍擋掉中文與亂輸入，避免白燒 API
+  if (!/^[a-z][a-z\s\-'.,]{0,59}$/.test(word) || word.split(/\s+/).length > 8) {
+    showToast('請輸入英文單字或片語');
     return;
   }
   searchInput.value = '';
@@ -1657,6 +1763,82 @@ async function lookupWord(word) {
 //  GEMINI API — 產生完整字典內容
 // ============================================================
 
+// ============================================================
+//  3D 筆記術：八大語塊公式（王梓沅）
+//  母語人士的日常英文由這八種模組組成，查到的語塊要分類歸位
+// ============================================================
+const CHUNK_TYPES = {
+  idiom:       { label: '片語',      eg: 'out of the blue' },
+  phrasal:     { label: '片語動詞',   eg: 'set up the chairs' },
+  grammatical: { label: '文法搭配',   eg: 'provide sb with sth' },
+  lexical:     { label: '語彙搭配',   eg: 'mild symptoms' },
+  starter:     { label: '慣用句頭',   eg: 'I was wondering…' },
+  midsentence: { label: '慣用句中',   eg: 'play an important role in sth' },
+  situational: { label: '情境式語塊', eg: 'Tell me about it.' },
+  frame:       { label: '句子框架',   eg: 'As far as sb is concerned…' },
+};
+const CHUNK_TYPE_LIST = Object.entries(CHUNK_TYPES)
+  .map(([k, v]) => `  - ${k}（${v.label}）：如 ${v.eg}`).join('\n');
+
+// 單字：字典條目 + 依語法槽位分組的搭配詞 + 常一起出現的語塊
+function wordPrompt(word) {
+  return `你是一本專業的繁體中文英語字典，同時精通「語塊（chunk）教學法」。請為英文單字「${word}」產出完整條目。
+
+格式要求：
+- display：這個字的正常書寫形式
+- syllables：音節切分，用 · 分隔（單音節字就是原字）
+- stress：重音在第幾個音節（數字，從 1 開始）
+- phonetic：美式音標（含斜線）
+- phoneticUK：英式音標，與美式相同則給空字串
+- pos：詞性（英文，如 noun / verb / adjective）
+- meanings：最多 3 個常用義項，每個含 zh（2-6字中文）、en（一句英文定義）、example（實用例句）、exampleZh（例句翻譯）
+- etymology：{ parts: 字根拆解, logic: 組合邏輯一句話 }；無明顯字根則兩者皆空字串
+- related：同字根親戚字最多 3 個，每個含 w、zh
+- collocations：**最重要的部分**。依「語法槽位」分組，2-4 組，每組含：
+  - pattern：槽位描述，用該字本身表示，如「${word} + 名詞」「${word} + 介系詞」「副詞 + ${word}」「動詞 + ${word}」
+  - items：該槽位下最高頻的真實搭配，2-4 個，每個含 en（完整搭配）、zh（中文）
+- chunks：包含這個字、母語人士真的會整組講出來的語塊，1-3 個，每個含：
+  - en：語塊本身
+  - zh：中文意思
+  - type：語塊類型，只能是以下其中一個 key：
+${CHUNK_TYPE_LIST}
+
+重要規則：
+- 搭配詞只給**真實高頻**的組合，不要文法正確但沒人講的
+- 修飾副詞要給能取代 very / a little 的精準用字（如 deeply / slightly）
+- 中文精簡，例句日常化
+- 回覆純 JSON，不要任何其他文字：
+
+{"display":"cynical","syllables":"cyn·i·cal","stress":1,"phonetic":"/ˈsɪn.ɪ.kəl/","phoneticUK":"","pos":"adjective","meanings":[{"zh":"憤世嫉俗的；偏激的","en":"Believing that people are motivated by self-interest.","example":"He has a cynical view of politics.","exampleZh":"他對政治抱持偏激的看法。"}],"etymology":{"parts":"cynic（犬儒者）+ -al（形容詞）","logic":"「像犬儒學派那樣」→ 憤世嫉俗的"},"related":[{"w":"cynic","zh":"憤世嫉俗者"}],"collocations":[{"pattern":"cynical + 名詞","items":[{"en":"a cynical view","zh":"偏激的觀點"},{"en":"a cynical smile","zh":"不懷好意的笑容"},{"en":"a cynical attitude","zh":"憤世嫉俗的態度"}]},{"pattern":"cynical + 介系詞","items":[{"en":"cynical about","zh":"對…感到懷疑"}]},{"pattern":"副詞 + cynical","items":[{"en":"deeply cynical","zh":"非常憤世嫉俗"},{"en":"slightly cynical","zh":"有點憤世嫉俗"}]}],"chunks":[]}`;
+}
+
+// 語塊：分類 + 模組化變化 + 造句模板
+function chunkPrompt(chunk) {
+  return `你精通英文「語塊（chunk）教學法」。請拆解這個語塊：「${chunk}」
+
+格式要求：
+- display：語塊的正常書寫形式
+- type：語塊類型，只能是以下其中一個 key：
+${CHUNK_TYPE_LIST}
+- pos：填 "chunk"
+- meanings：1-2 個用法，每個含 zh（中文意思）、en（英文說明）、example（實用例句）、exampleZh（例句翻譯）
+- variations：**最重要的部分**。這個語塊在真實使用中的模組化變化，2-4 個，依「程度或語氣」由弱到強排序，每個含 en（完整形式）、zh（中文）
+  例：have no bearing on（沒有影響）→ have some bearing on（有一點影響）→ have a bearing on（有影響）
+  若這個語塊沒有程度變化，就給不同的常見變體；真的沒有變體則給空陣列
+- template：造句練習模板，含
+  - en：把可替換處挖成 ___ 的句子
+  - zh：模板的中文說明
+- register：使用場合，只能填 "formal"（正式）、"neutral"（中性）、"casual"（口語）其中之一
+- note：使用時要注意的一句話（如常見誤用、語氣強弱）；沒有則空字串
+
+重要規則：
+- variations 要是母語人士真的會講的，不要自己造
+- template 要能讓學習者替換關鍵字反覆練習
+- 回覆純 JSON，不要任何其他文字：
+
+{"display":"have a bearing on","type":"midsentence","pos":"chunk","meanings":[{"zh":"對…有影響、有關係","en":"To have an influence on something.","example":"Personal feelings had no bearing on our decision.","exampleZh":"個人情感對我們的決定沒有影響。"}],"variations":[{"en":"have no bearing on","zh":"完全沒有影響"},{"en":"have some bearing on","zh":"有一點影響"},{"en":"have a bearing on","zh":"有影響"}],"template":{"en":"Personal feelings had ___ bearing on our decision.","zh":"用 no / some / a 替換，感受影響程度的差別"},"register":"neutral","note":"比 affect 更精準、更正式，適合書面與會議場合"}`;
+}
+
 async function geminiDictionary(word) {
   const currentKey = getApiKey();
   if (!currentKey) {
@@ -1664,33 +1846,10 @@ async function geminiDictionary(word) {
     return null;
   }
 
-  showToast('🔄 正在查詢字典...');
+  const isChunk = /\s/.test(word);
+  showToast(isChunk ? '🔄 正在拆解語塊...' : '🔄 正在查詢字典...');
 
-  const prompt = `你是一本專業的繁體中文英語字典（類似牛津英漢字典）。請為英文單字「${word}」產出完整的字典條目。
-
-格式要求：
-- syllables：音節切分，用 · 分隔（如 trans·mis·sion；單音節字就是原字）
-- stress：重音在第幾個音節（數字，從 1 開始；單音節為 1）
-- phonetic：美式 KK/IPA 音標（含斜線，如 /trænzˈmɪʃ.ən/）
-- phoneticUK：英式音標，若與美式相同則給空字串
-- pos：詞性（用英文，如 noun / verb / adjective）
-- meanings：最多 4 個常用義項，每個包含：
-  - zh：簡潔中文意思（像字典：社會、社會制度、社團）
-  - en：簡短英文定義（一句話）
-  - example：一個英文例句（自然、實用的句子）
-  - exampleZh：例句的繁體中文翻譯
-- etymology：字根字首拆解，包含：
-  - parts：組件拆解（如 trans-（橫跨）+ miss（送）+ -ion（名詞）；若無明顯字根結構給空字串）
-  - logic：組合邏輯一句話（如 「送過去」→ 傳送）
-- related：同字根的常見親戚字，最多 3 個，每個含 w（英文字）和 zh（2-4字中文意思）；若無則給空陣列
-
-重要規則：
-- 只收錄常用義項，冷門的不要
-- 中文意思要精簡，像字典一樣（2-6個字）
-- 例句要實用、日常化
-- 回覆純 JSON，不要任何其他文字：
-
-{"syllables":"so·ci·e·ty","stress":2,"phonetic":"/səˈsaɪ.ə.t̬i/","phoneticUK":"/səˈsaɪ.ə.ti/","pos":"noun","meanings":[{"zh":"社會","en":"The community of people living in a particular country or region.","example":"Modern society faces many challenges.","exampleZh":"現代社會面臨許多挑戰。"}],"etymology":{"parts":"soci（同伴）+ -ety（名詞）","logic":"「同伴的群體」→ 社會"},"related":[{"w":"social","zh":"社交的"},{"w":"associate","zh":"聯想；夥伴"}]}`;
+  const prompt = isChunk ? chunkPrompt(word) : wordPrompt(word);
 
   // 主模型 + 備援模型。flash-lite 延遲最低，查字典品質足夠
   const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
@@ -1706,7 +1865,7 @@ async function geminiDictionary(word) {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.2,
-            maxOutputTokens: 1500,
+            maxOutputTokens: 2600,   // 3D 欄位（搭配詞／語塊／變化）讓輸出變長
             // 關閉思考模式：查字典不需要推理，關掉能大幅縮短等待時間
             thinkingConfig: { thinkingBudget: 0 }
           }
@@ -1748,15 +1907,30 @@ async function geminiDictionary(word) {
     let parsed = JSON.parse(cleaned);
     showToast('✓ 查詢完成');
 
+    const valid = t => CHUNK_TYPES[t] ? t : '';
     return {
+      display: parsed.display || word,
+      type: isChunk ? 'chunk' : 'word',
+      chunkType: isChunk ? (valid(parsed.type) || 'situational') : '',
       syllables: parsed.syllables || '',
       stress: parsed.stress || 1,
       phonetic: parsed.phonetic || '',
       phoneticUK: parsed.phoneticUK || '',
-      pos: parsed.pos || '',
+      pos: parsed.pos || (isChunk ? 'chunk' : ''),
       meanings: (parsed.meanings || []).slice(0, 4),
       etymology: parsed.etymology || null,
       related: (parsed.related || []).slice(0, 3),
+      // 3D 欄位
+      collocations: (parsed.collocations || []).slice(0, 4)
+        .map(c => ({ pattern: c.pattern || '', items: (c.items || []).slice(0, 4) }))
+        .filter(c => c.pattern && c.items.length),
+      chunks: (parsed.chunks || []).slice(0, 3)
+        .map(c => ({ en: c.en || '', zh: c.zh || '', type: valid(c.type) || 'lexical' }))
+        .filter(c => c.en),
+      variations: (parsed.variations || []).slice(0, 4).filter(v => v && v.en),
+      template: parsed.template && parsed.template.en ? parsed.template : null,
+      register: ['formal', 'neutral', 'casual'].includes(parsed.register) ? parsed.register : '',
+      note: parsed.note || '',
       audioUS: '',
       audioUK: '',
     };
@@ -1866,8 +2040,8 @@ function renderDictPage(data) {
   const hasAnyChinese = data.meanings.some(m => m.zh);
 
   // 音節切分 + 重音標示（無資料時退回顯示原字）
-  let wordHTML = esc(data.word);
-  if (data.syllables && data.syllables.includes('·')) {
+  let wordHTML = esc(data.display || data.word);
+  if (data.type !== 'chunk' && data.syllables && data.syllables.includes('·')) {
     const parts = data.syllables.split('·');
     wordHTML = parts.map((s, i) =>
       (i + 1) === (data.stress || 1)
@@ -1917,33 +2091,111 @@ function renderDictPage(data) {
     `;
   }
 
+  // ── 3D 區塊 1：搭配詞（依語法槽位分組）──
+  let collocHTML = '';
+  if ((data.collocations || []).length) {
+    collocHTML = `
+      <div class="d3-card">
+        <div class="d3-label">🔗 常用搭配</div>
+        ${data.collocations.map(g => `
+          <div class="colloc-group">
+            <div class="colloc-pattern">${esc(g.pattern)}</div>
+            <div class="colloc-items">
+              ${g.items.map(it =>
+                `<button class="colloc-item" data-say="${esc(it.en)}">${esc(it.en)}${it.zh ? `<span class="cz">${esc(it.zh)}</span>` : ''}</button>`
+              ).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // ── 3D 區塊 2：語塊模組化變化（程度階梯）──
+  let varHTML = '';
+  if ((data.variations || []).length) {
+    varHTML = `
+      <div class="d3-card">
+        <div class="d3-label">🎚 模組化變化</div>
+        ${data.variations.map((v, i) => `
+          <div class="var-step">
+            <span class="var-rank">${i + 1}</span>
+            <span class="var-en">${esc(v.en)}</span>
+            <span class="var-zh">${esc(v.zh || '')}</span>
+          </div>
+        `).join('')}
+        ${data.template && data.template.en ? `
+          <div class="d3-note">
+            <b>造句練功房</b><br>${esc(data.template.en)}
+            ${data.template.zh ? `<br><span style="color:var(--ink3);">${esc(data.template.zh)}</span>` : ''}
+          </div>` : ''}
+      </div>
+    `;
+  }
+
+  // ── 3D 區塊 3：這個字常出現的語塊（帶八大公式分類）──
+  let chunksHTML = '';
+  if ((data.chunks || []).length) {
+    chunksHTML = `
+      <div class="d3-card">
+        <div class="d3-label">🧱 常一起出現的語塊</div>
+        ${data.chunks.map(c => `
+          <div class="chunk-row" data-word="${esc(c.en)}">
+            <div style="flex:1; min-width:0;">
+              <div class="chunk-en">${esc(c.en)}</div>
+              <div class="chunk-zh">${esc(c.zh || '')}</div>
+            </div>
+            <span class="chunk-tag">${esc((CHUNK_TYPES[c.type] || {}).label || '語塊')}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  const noteHTML = data.note
+    ? `<div class="d3-card"><div class="d3-label">💡 使用提醒</div><div style="font-size:14px;line-height:1.7;color:var(--ink2);">${esc(data.note)}</div></div>`
+    : '';
+
+  const isChunk = data.type === 'chunk';
+  const regLabel = { formal: '正式', neutral: '中性', casual: '口語' }[data.register];
   const usLabel = data.phonetic ? `US ${esc(data.phonetic)}` : 'US';
   const ukLabel = (data.phoneticUK && data.phoneticUK !== data.phonetic) ? `UK ${esc(data.phoneticUK)}` : 'UK';
 
   const content = document.getElementById('dict-content');
   content.innerHTML = `
     <div class="dict-word-section">
-      <div class="dict-word">${wordHTML}</div>
+      <div class="dict-word"${isChunk ? ' style="font-size:26px;line-height:1.35;"' : ''}>${wordHTML}</div>
       <div class="dict-pos-row">
-        <span class="dict-pos">${esc(data.pos)}</span>
-        ${(data.syllables && data.syllables.includes('·')) ? `<span class="dict-stress-hint">重音在第 ${data.stress || 1} 音節</span>` : ''}
+        ${isChunk
+          ? `<span class="chunk-tag">${esc((CHUNK_TYPES[data.chunkType] || {}).label || '語塊')}</span>`
+          : `<span class="dict-pos">${esc(data.pos)}</span>`}
+        ${regLabel ? `<span class="register-tag reg-${esc(data.register)}">${regLabel}</span>` : ''}
+        ${(!isChunk && data.syllables && data.syllables.includes('·')) ? `<span class="dict-stress-hint">重音在第 ${data.stress || 1} 音節</span>` : ''}
       </div>
       <div class="dict-speak-group">
         <button class="dict-speak" id="btn-us">🔊 ${usLabel}</button>
-        <button class="dict-speak" id="btn-uk">🔊 ${ukLabel}</button>
+        ${isChunk ? '' : `<button class="dict-speak" id="btn-uk">🔊 ${ukLabel}</button>`}
       </div>
       <div class="dict-translate-status" style="display:none;font-size:13px;color:var(--accent);margin-top:10px;"></div>
       ${!hasAnyChinese ? `<button class="dict-translate-btn" onclick="translateWord(currentDictWord)">🔄 Auto Translate</button>` : ''}
       <div class="dict-meanings">${meaningsHTML}</div>
     </div>
+    ${varHTML}
+    ${collocHTML}
+    ${chunksHTML}
     ${etymologyHTML}
+    ${noteHTML}
   `;
 
   // 事件繫結（避免把資料嵌進 inline onclick）
+  const say = data.display || data.word;
   const btnUS = content.querySelector('#btn-us');
   const btnUK = content.querySelector('#btn-uk');
-  btnUS.addEventListener('click', () => speak(data.word, 'en-US', btnUS, data.audioUS || ''));
-  btnUK.addEventListener('click', () => speak(data.word, 'en-GB', btnUK, data.audioUK || ''));
+  if (btnUS) btnUS.addEventListener('click', () => speak(say, 'en-US', btnUS, data.audioUS || ''));
+  if (btnUK) btnUK.addEventListener('click', () => speak(say, 'en-GB', btnUK, data.audioUK || ''));
+  // 搭配詞點一下就唸出來——聽整組才記得住
+  content.querySelectorAll('[data-say]').forEach(el =>
+    el.addEventListener('click', () => speak(el.dataset.say, 'en-US', el, '')));
   content.querySelectorAll('[data-edit]').forEach(el => {
     const [idx, field] = el.dataset.edit.split(':');
     el.addEventListener('click', () => editField(el, Number(idx), field));
@@ -2141,18 +2393,71 @@ function renderBank() {
     const display = w.meanings[0].zh || w.meanings[0].en || '';
     const displayShort = display.length > 20 ? display.slice(0, 20) + '...' : display;
     return `
-    <div class="bank-word-item" data-word="${esc(w.word)}">
-      <div>
-        <div class="bw-word">${esc(w.word)}</div>
+    <div class="bank-word-item">
+      <div data-word="${esc(w.word)}" style="flex:1; min-width:0;">
+        <div class="bw-word">${esc(w.display || w.word)}</div>
         <div class="bw-meaning">${esc(displayShort)}</div>
       </div>
       <div class="bw-right">
-        <span class="bw-level ${levelClass[w.level]}">${levelLabel[w.level]}</span>
+        <span class="bw-level ${levelClass[w.level] || 'level-new'}">${levelLabel[w.level] || '新字'}</span>
+        <button class="bw-grad" data-grad="${esc(w.word)}" title="我記熟了，移出字庫">🎓</button>
       </div>
     </div>
   `}).join('');
   list.querySelectorAll('[data-word]').forEach(el =>
     el.addEventListener('click', () => lookupWord(el.dataset.word)));
+  list.querySelectorAll('[data-grad]').forEach(el =>
+    el.addEventListener('click', e => { e.stopPropagation(); askGraduate(el.dataset.grad); }));
+
+  // 已精通的字：從字庫畢業，不再佔空間也不再排複習
+  const grads = getGraduated();
+  const gradEl = document.getElementById('bank-graduated');
+  if (grads.length) {
+    gradEl.textContent = `🎓 已精通 ${grads.length} 個字`;
+    gradEl.style.display = 'flex';
+  } else {
+    gradEl.style.display = 'none';
+  }
+}
+
+// ============================================================
+//  畢業機制：「這個字我真的記熟了」
+//  移出字庫＝釋放空間＋不再排複習，但保留紀錄當成就
+// ============================================================
+function getGraduated() {
+  try { return JSON.parse(localStorage.getItem('vocabflow_graduated') || '[]'); } catch (e) { return []; }
+}
+
+let pendingGraduate = null;
+
+function askGraduate(word) {
+  const item = wordBank.find(w => w.word === word);
+  if (!item) return;
+  pendingGraduate = word;
+  document.getElementById('grad-word').textContent = item.display || item.word;
+  document.getElementById('grad-modal').style.display = 'flex';
+}
+
+function closeGraduate() {
+  document.getElementById('grad-modal').style.display = 'none';
+  pendingGraduate = null;
+}
+
+function confirmGraduate() {
+  const word = pendingGraduate;
+  if (!word) return;
+  const idx = wordBank.findIndex(w => w.word === word);
+  if (idx < 0) { closeGraduate(); return; }
+
+  wordBank.splice(idx, 1);
+  const grads = getGraduated();
+  if (!grads.some(g => g.word === word)) grads.push({ word, at: Date.now() });
+  try { localStorage.setItem('vocabflow_graduated', JSON.stringify(grads)); } catch (e) {}
+
+  saveBank();
+  closeGraduate();
+  renderBank(); renderRecent(); updateDueBanner(); renderSpotlight();
+  showToast(`🎓 ${word} 已精通，移出字庫`);
 }
 
 // ============================================================
@@ -2276,7 +2581,11 @@ function startFlashcard(count) {
 function renderFlashcard() {
   const w = fcWords[fcIndex];
   const m = w.meanings[0];
-  document.getElementById('fc-word').textContent = w.word;
+  const label = w.display || w.word;
+  const wordEl = document.getElementById('fc-word');
+  wordEl.textContent = label;
+  // 語塊比單字長很多，字級要跟著縮才不會爆版
+  wordEl.style.fontSize = label.length > 24 ? '22px' : label.length > 14 ? '26px' : '';
   document.getElementById('fc-phonetic').textContent = w.phonetic;
   document.getElementById('fc-pos').textContent = w.pos;
   document.getElementById('fc-meaning-en').textContent = m.en || '';
@@ -2368,7 +2677,7 @@ function getMeaningDisplay(m) {
 function renderQuiz() {
   qzAnswered = false;
   const w = qzWords[qzIndex];
-  document.getElementById('qz-word').textContent = w.word;
+  document.getElementById('qz-word').textContent = w.display || w.word;
   document.getElementById('qz-phonetic').textContent = w.phonetic;
   const qDone = Math.min(qzIndex + 1, qzWords.length);
   const qRetry = qzIndex >= qzTotal;
@@ -2504,7 +2813,8 @@ function buildBackup() {
     format: 1,
     exportedAt: new Date().toISOString(),
     count: wordBank.length,
-    words: wordBank
+    words: wordBank,
+    graduated: getGraduated()
   }, null, 2);
 }
 
@@ -2551,7 +2861,7 @@ async function exportBackup() {
   }
 }
 
-let pendingImport = null;
+let pendingImport = null, pendingGrads = [];
 
 function openImportModal() {
   pendingImport = null;
@@ -2580,6 +2890,7 @@ function handleImportText(text) {
   if (!text || !text.trim()) { showToast('請先選檔案或貼上內容'); return; }
   try {
     pendingImport = parseBackup(text);
+    try { pendingGrads = (JSON.parse(text).graduated) || []; } catch (e) { pendingGrads = []; }
     document.getElementById('import-summary').textContent = `讀到 ${pendingImport.length} 個字，要怎麼處理？`;
     document.getElementById('import-actions').style.display = 'flex';
   } catch (e) {
@@ -2624,6 +2935,14 @@ function applyImport(mode) {
     });
   }
 
+  // 畢業紀錄一律合併（只是字串清單，不會衝突）
+  if (pendingGrads.length) {
+    const grads = getGraduated();
+    pendingGrads.forEach(g => { if (g && g.word && !grads.some(x => x.word === g.word)) grads.push(g); });
+    try { localStorage.setItem('vocabflow_graduated', JSON.stringify(grads)); } catch (e) {}
+  }
+  pendingGrads = [];
+
   saveBank();
   closeImportModal();
   closeSettings();
@@ -2646,10 +2965,11 @@ function startSpell(count) {
     source = shuffle(Object.entries(DICTIONARY).slice(0, 10).map(([word, data]) => ({ word, ...data, level: 'new' })));
     source = count > 0 ? source.slice(0, count) : source;
   }
-  // 拼字題需要中文題面，沒中文意思的字跳過
-  source = source.filter(w => w.meanings && w.meanings[0] && w.meanings[0].zh);
+  // 拼字題需要中文題面；語塊不出題（打整串片語在手機上太苛刻，交給造句練功房）
+  const hadChunks = source.some(w => w.type === 'chunk');
+  source = source.filter(w => w.meanings && w.meanings[0] && w.meanings[0].zh && w.type !== 'chunk');
   if (source.length === 0) {
-    showToast('字庫裡還沒有含中文意思的字');
+    showToast(hadChunks ? '拼字題只練單字，字庫裡目前只有語塊' : '字庫裡還沒有含中文意思的字');
     return;
   }
   spWords = [...source];
@@ -2697,7 +3017,9 @@ function submitSpell() {
   const target = w.word.toLowerCase();
   const dist = levenshtein(guess, target);
   const exact = dist === 0;
-  const almost = dist === 1;       // 容錯一個字母：算對，但把正確拼法秀出來
+  // 容錯隨長度放寬：短字錯 1 個、長字最多錯 2 個，都算對但秀出正確拼法
+  const tolerance = target.replace(/[^a-z]/g, '').length >= 12 ? 2 : 1;
+  const almost = dist > 0 && dist <= tolerance;
   const correct = exact || almost;
 
   const first = !(w.word in spFirstTry);
@@ -2712,7 +3034,7 @@ function submitSpell() {
   } else if (almost) {
     input.classList.add('sp-correct');
     fb.className = 'spell-feedback almost';
-    fb.innerHTML = `差一個字母，算你對！正確拼法：<div class="sp-answer">${esc(w.word)}</div>`;
+    fb.innerHTML = `差${dist === 1 ? '一' : '兩'}個字母，算你對！正確拼法：<div class="sp-answer">${esc(w.display || w.word)}</div>`;
     if (first) { updateWordLevel(w.word, 'up'); updateSRS(w.word, true); }
   } else {
     input.classList.add('sp-wrong');
