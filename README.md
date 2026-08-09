@@ -6,6 +6,8 @@
 
 單一 HTML 檔、無後端、資料全存在你自己的瀏覽器裡。可以加到手機主畫面當 app 用，離線也能開。
 
+**線上版本 → https://joejump-star.github.io/vocabflow/**
+
 ## 特色
 
 - **AI 字典**：串接 Google Gemini 產生完整字典條目——音節切分、重音標示、美式／英式音標、多個義項、例句與翻譯、字根拆解與同根字
@@ -51,7 +53,11 @@ python3 -m http.server 8642
 
 ## 部署
 
-純靜態網站，把整個資料夾丟到任何靜態託管服務即可（Netlify、Vercel、GitHub Pages、Cloudflare Pages⋯）。不需要任何建置流程。
+純靜態網站，沒有建置流程，把整個資料夾丟到任何靜態託管服務即可（GitHub Pages、Netlify、Vercel、Cloudflare Pages⋯）。
+
+本專案使用 **GitHub Pages**，直接發佈 `main` 分支根目錄——推送即上線，不需要 CI。
+
+想自己架一份：fork 這個 repo → Settings → Pages → Source 選 `main` / `/ (root)` → 用自己的 Gemini key 就能跑。
 
 ## 技術架構
 
