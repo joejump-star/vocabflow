@@ -214,6 +214,11 @@ body {
 .home-backup-banner .due-text { flex: 1; font-size: 13px; color: var(--ink3); }
 .home-backup-banner .backup-go { font-size: 13px; font-weight: 600; color: var(--blue); }
 .home-backup-banner:active { background: var(--surface-dim); }
+.home-backup-banner.danger {
+  background: var(--red-bg); border: 1.5px solid var(--red);
+}
+.home-backup-banner.danger .due-text { color: var(--ink); font-weight: 600; }
+.home-backup-banner.danger .backup-go { color: var(--red); }
 /* 設定面板的列表列 */
 .set-row {
   display: flex; align-items: center; gap: 12px;
@@ -1024,7 +1029,7 @@ body {
     </div>
 
     <div style="flex:1"></div>
-    <div class="home-version" style="text-align:center; padding-bottom:8px;">v2.6 · 0717</div>
+    <div class="home-version" style="text-align:center; padding-bottom:8px;">v2.7 · 0809</div>
   </div>
 
   <div class="bottom-nav">
@@ -1390,8 +1395,42 @@ const DICTIONARY = {
 let wordBank = [];
 try { wordBank = JSON.parse(localStorage.getItem('vocabflow_bank') || '[]'); } catch(e) { wordBank = []; }
 
+// 存檔絕不能靜默失敗——空間滿了卻不告知，等同於邊學邊掉進度
+let storageFull = false;
+
+function trySet(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
+}
+
 function saveBank() {
-  try { localStorage.setItem('vocabflow_bank', JSON.stringify(wordBank)); } catch(e) {}
+  const json = JSON.stringify(wordBank);
+  if (trySet('vocabflow_bank', json)) {
+    if (storageFull) { storageFull = false; updateBackupBanner(); }
+    return true;
+  }
+  // 第一招：犧牲查詢快取（那是可以重查回來的，單字庫不行）
+  try { localStorage.removeItem('vocabflow_dict_cache'); } catch (e) {}
+  if (trySet('vocabflow_bank', json)) {
+    showToast('空間不足，已清掉查詢快取（單字庫沒事）');
+    return true;
+  }
+  // 真的滿了：大聲講，並催促備份
+  if (!storageFull) {
+    storageFull = true;
+    showToast('⚠️ 空間已滿，進度沒存到！請立刻備份');
+    updateBackupBanner();
+  }
+  return false;
+}
+
+// 目前佔用了多少空間
+function storageUsage() {
+  let chars = 0;
+  for (const k of ['vocabflow_bank', 'vocabflow_dict_cache', 'vocabflow_gemini_key']) {
+    const v = localStorage.getItem(k);
+    if (v) chars += v.length + k.length;
+  }
+  return { mb: chars * 2 / 1024 / 1024, words: wordBank.length };
 }
 
 // 查詢結果快取：Gemini 查過的字存起來，重新整理不用再燒 API
@@ -2413,9 +2452,13 @@ function quizAnswer(btn, correct, correctMeaning) {
 // ============================================================
 function openSettings() {
   const last = Number(localStorage.getItem('vocabflow_last_backup') || 0);
-  document.getElementById('settings-status').textContent = last
-    ? `目前 ${wordBank.length} 個字 · 上次備份 ${fmtSince(last)}`
-    : `目前 ${wordBank.length} 個字 · 還沒備份過`;
+  const u = storageUsage();
+  const el = document.getElementById('settings-status');
+  const size = u.mb >= 1 ? u.mb.toFixed(1) + ' MB' : Math.round(u.mb * 1024) + ' KB';
+  el.textContent = `${u.words} 個字 · 佔用 ${size} · `
+    + (last ? `上次備份 ${fmtSince(last)}` : '還沒備份過');
+  el.style.color = storageFull ? 'var(--red)' : 'var(--ink3)';
+  if (storageFull) el.textContent = '⚠️ 空間已滿，新進度無法存檔——請立刻匯出備份';
   document.getElementById('settings-modal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
@@ -2435,6 +2478,20 @@ function markBackedUp() {
 function updateBackupBanner() {
   const el = document.getElementById('home-backup-banner');
   if (!el) return;
+
+  // 空間滿了是緊急狀況：一定要顯示，而且不能低調
+  if (storageFull) {
+    el.classList.add('danger');
+    el.querySelector('.due-icon').textContent = '⚠️';
+    el.querySelector('.due-text').textContent = '空間已滿，新進度無法存檔';
+    el.querySelector('.backup-go').textContent = '立即備份 ›';
+    el.style.display = 'flex';
+    return;
+  }
+
+  el.classList.remove('danger');
+  el.querySelector('.due-icon').textContent = '💾';
+  el.querySelector('.backup-go').textContent = '備份 ›';
   const last = Number(localStorage.getItem('vocabflow_last_backup') || 0);
   const stale = !last || (Date.now() - last) > 14 * 86400000;
   el.querySelector('.due-text').textContent = last ? '距離上次備份有一陣子了' : '你的字庫還沒備份過';
