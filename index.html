@@ -785,8 +785,13 @@ body {
 }
 .card-front .card-pos-badge { background: var(--accent-bg); color: var(--accent); }
 .card-back .card-pos-badge { background: rgba(255,255,255,0.2); color: #fff; }
+.card-front-en {
+  font-family: var(--font-en); font-size: 14px; line-height: 1.55;
+  color: var(--ink2); margin-top: 18px; padding: 0 6px;
+  max-height: 110px; overflow: hidden;
+}
 .card-hint {
-  font-size: 13px; color: var(--ink4); margin-top: 28px;
+  font-size: 13px; color: var(--ink4); margin-top: 20px;
 }
 .card-back .card-hint { color: rgba(255,255,255,0.6); margin-top: auto; }
 .card-meaning-en {
@@ -1121,7 +1126,7 @@ body {
     </div>
 
     <div style="flex:1"></div>
-    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.0 · 0809</div>
+    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.1 · 0915</div>
   </div>
 
   <div class="bottom-nav">
@@ -1227,12 +1232,12 @@ body {
           <div class="card-word" id="fc-word"></div>
           <div class="card-phonetic" id="fc-phonetic"></div>
           <div class="card-pos-badge" id="fc-pos"></div>
+          <div class="card-front-en" id="fc-front-en"></div>
           <div class="card-hint">Tap to flip</div>
         </div>
         <div class="card-face card-back">
           <div style="flex:1"></div>
           <div class="card-meaning-zh" id="fc-meaning-zh"></div>
-          <div class="card-meaning-en" id="fc-meaning-en"></div>
           <div class="card-examples" id="fc-examples"></div>
           <div style="flex:1"></div>
           <button class="card-detail-btn" id="fc-detail-btn">查看詳情 →</button>
@@ -1685,6 +1690,34 @@ dictSearch.addEventListener('keydown', e => {
   }
 });
 
+// 含逾時的 fetch：第三方 API 掛掉時不能拖著整個查詢
+function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
+function isChunkQuery(w) { return /\s/.test(w); }
+
+// 從 Free Dictionary 回應撈出音標與美式／英式音檔
+function extractAudio(audioData) {
+  let phonetic = '', audioUS = '', audioUK = '';
+  if (audioData && audioData[0]) {
+    const d = audioData[0];
+    phonetic = d.phonetic || '';
+    (d.phonetics || []).forEach(p => {
+      if (p.text && !phonetic) phonetic = p.text;
+      if (p.audio) {
+        const url = p.audio.startsWith('//') ? 'https:' + p.audio : p.audio;
+        if (url.includes('-us') || url.includes('en-us')) audioUS = url;
+        else if (url.includes('-uk') || url.includes('-gb')) audioUK = url;
+        else if (!audioUS) audioUS = url;
+      }
+    });
+  }
+  return { phonetic, audioUS, audioUK };
+}
+
 async function lookupWord(word) {
   word = String(word || '').trim().toLowerCase();
   // 接受單字，也接受語塊（片語、句型框架）。仍擋掉中文與亂輸入，避免白燒 API
@@ -1714,42 +1747,38 @@ async function lookupWord(word) {
     return;
   }
 
-  // Launch BOTH API calls at the same time (parallel)
-  const audioPromise = fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`)
-    .then(res => res.ok ? res.json() : null)
+  // 兩支 API 同時發，但「只等 Gemini」。
+  // 真人音檔那支（Free Dictionary）常常整個掛掉不回應，以前用 Promise.all 等它，
+  // 結果 Gemini 2 秒就好了，使用者卻要陪它等到瀏覽器放棄。
+  // 現在：音檔設 4 秒上限，到了就悄悄補上，沒到就用 TTS 備援，絕不阻塞畫面。
+  const audioPromise = (isChunkQuery(word) ? Promise.resolve(null) : fetchWithTimeout(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`, 4000))
+    .then(res => res && res.ok ? res.json() : null)
     .catch(() => null);
 
-  const geminiPromise = geminiDictionary(word);
+  const geminiEntry = await geminiDictionary(word);
 
-  // Wait for both to finish
-  const [audioData, geminiEntry] = await Promise.all([audioPromise, geminiPromise]);
-
-  // Extract audio info from Free Dictionary
-  let phonetic = '', audioUS = '', audioUK = '';
-  if (audioData && audioData[0]) {
-    const d = audioData[0];
-    phonetic = d.phonetic || '';
-    if (d.phonetics) {
-      d.phonetics.forEach(p => {
-        if (p.text && !phonetic) phonetic = p.text;
-        if (p.audio) {
-          const url = p.audio.startsWith('//') ? 'https:' + p.audio : p.audio;
-          if (url.includes('-us') || url.includes('en-us')) audioUS = url;
-          else if (url.includes('-uk') || url.includes('-gb')) audioUK = url;
-          else if (!audioUS) audioUS = url;
-        }
-      });
-    }
-  }
-
-  // Merge Gemini content with audio data
   if (geminiEntry) {
-    geminiEntry.phonetic = phonetic || geminiEntry.phonetic || '';
-    geminiEntry.audioUS = audioUS;
-    geminiEntry.audioUK = audioUK;
     saveDictEntry(word, geminiEntry);
     currentDictWord = { word, ...geminiEntry };
     renderDictPage(currentDictWord);
+
+    // 音檔晚點到 → 原地補上，不重畫（使用者可能已經在點東西）
+    audioPromise.then(audioData => {
+      const a = extractAudio(audioData);
+      if (!a.audioUS && !a.audioUK && !a.phonetic) return;
+      const entry = DICTIONARY[word];
+      if (!entry) return;
+      entry.audioUS = a.audioUS; entry.audioUK = a.audioUK;
+      if (!entry.phonetic && a.phonetic) entry.phonetic = a.phonetic;
+      saveDictEntry(word, entry);
+      // 還停在這個字的頁面才更新畫面上的資料與音標
+      if (currentDictWord && currentDictWord.word === word) {
+        Object.assign(currentDictWord, { audioUS: a.audioUS, audioUK: a.audioUK, phonetic: entry.phonetic });
+        const us = document.getElementById('btn-us');
+        if (us && entry.phonetic) us.textContent = `🔊 US ${entry.phonetic}`;
+      }
+    });
     return;
   }
 
@@ -1858,8 +1887,12 @@ async function geminiDictionary(word) {
   try {
     for (const model of MODELS) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      // 25 秒上限：flash-lite 正常 2-5 秒，超過就是出事了，別讓使用者乾等
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 25000);
       res = await fetch(url, {
         method: 'POST',
+        signal: ctrl.signal,
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': currentKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
@@ -1871,6 +1904,7 @@ async function geminiDictionary(word) {
           }
         })
       });
+      clearTimeout(timer);
       if (res.status !== 404) break; // 404 = 模型不存在，換下一個試
     }
 
@@ -1936,7 +1970,7 @@ async function geminiDictionary(word) {
     };
   } catch (e) {
     console.log('Error:', e);
-    showToast('網路錯誤或格式錯誤');
+    showToast(e && e.name === 'AbortError' ? '查詢逾時，請再試一次' : '網路錯誤或格式錯誤');
     return null;
   }
 }
@@ -2588,7 +2622,10 @@ function renderFlashcard() {
   wordEl.style.fontSize = label.length > 24 ? '22px' : label.length > 14 ? '26px' : '';
   document.getElementById('fc-phonetic').textContent = w.phonetic;
   document.getElementById('fc-pos').textContent = w.pos;
-  document.getElementById('fc-meaning-en').textContent = m.en || '';
+  // 正面放英文解釋：先用英文理解，翻面再對中文
+  const frontEn = document.getElementById('fc-front-en');
+  frontEn.textContent = m.en || '';
+  frontEn.style.fontSize = (m.en || '').length > 90 ? '13px' : '';
   document.getElementById('fc-meaning-zh').textContent = m.zh || '';
 
   // 背面瘦身：只放一句例句，完整內容用「查看詳情」進字典頁
