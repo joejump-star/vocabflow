@@ -791,8 +791,70 @@ body {
   max-height: 110px; overflow: hidden;
 }
 .card-hint {
-  font-size: 13px; color: var(--ink4); margin-top: 20px;
+  font-size: 13px; color: var(--ink4); margin-top: 16px;
 }
+.card-front { justify-content: center; padding: 22px 22px; }
+.card-front-en { margin-top: 12px; }
+.card-front-ex {
+  font-family: var(--font-en); font-size: 13px; font-style: italic; line-height: 1.5;
+  color: var(--ink3); margin-top: 10px; padding: 8px 10px;
+  border-left: 2px solid var(--accent-bg2); text-align: left;
+  max-height: 64px; overflow: hidden;
+}
+.card-front-ex:empty { display: none; }
+.card-front-ex b { color: var(--accent); font-style: normal; }
+.card-phonetic-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px;
+}
+.card-phonetic-row .card-phonetic, .card-phonetic-row .quiz-phonetic { margin-top: 0; }
+.say-btn {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  border: none; background: var(--accent-bg); color: var(--accent);
+  font-size: 15px; cursor: pointer; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform var(--transition);
+}
+.say-btn:active { transform: scale(0.9); }
+.say-btn.playing, .tool-btn.playing { background: var(--accent); color: #fff; }
+.leech-tag {
+  font-size: 11px; font-weight: 700; color: var(--red);
+  background: var(--red-bg); padding: 3px 10px; border-radius: 10px; margin-bottom: 10px;
+}
+/* 拼字輔助 */
+.spell-ex {
+  font-family: var(--font-en); font-size: 14px; font-style: italic; line-height: 1.6;
+  color: var(--ink2); margin: 14px auto 0; max-width: 340px;
+}
+.spell-tools { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+.tool-btn {
+  padding: 8px 14px; border-radius: 16px; border: 1px solid var(--bg2);
+  background: var(--surface); color: var(--ink2);
+  font-size: 13px; font-weight: 600; font-family: var(--font-zh); cursor: pointer;
+}
+.tool-btn:active { transform: scale(0.95); }
+.tool-btn:disabled { opacity: 0.4; cursor: default; }
+/* 常錯字 */
+.leech-opt { border-color: var(--red-bg); }
+.leech-panel {
+  margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-sm);
+  background: var(--red-bg); border: 1px solid var(--red);
+}
+.leech-panel-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--ink); }
+.leech-panel-head b { color: var(--red); font-size: 17px; }
+.leech-go { border: none; background: var(--red); color: #fff; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 14px; cursor: pointer; font-family: var(--font-zh); }
+.leech-panel-sub { font-size: 12px; color: var(--ink3); line-height: 1.5; margin-top: 6px; }
+.bank-filter { display: flex; gap: 8px; margin-top: 10px; }
+.filter-chip {
+  padding: 6px 12px; border-radius: 14px; border: 1px solid var(--bg2);
+  background: var(--surface); color: var(--ink3); font-size: 12px; font-weight: 600;
+  font-family: var(--font-zh); cursor: pointer;
+}
+.filter-chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.bw-wrong {
+  font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+  background: var(--bg2); color: var(--ink3); white-space: nowrap;
+}
+.bw-wrong.hot { background: var(--red-bg); color: var(--red); }
 .card-back .card-hint { color: rgba(255,255,255,0.6); margin-top: auto; }
 .card-meaning-en {
   font-family: var(--font-en); font-size: 13px; font-weight: 400;
@@ -1126,7 +1188,7 @@ body {
     </div>
 
     <div style="flex:1"></div>
-    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.1 · 0915</div>
+    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.2 · 1031</div>
   </div>
 
   <div class="bottom-nav">
@@ -1193,6 +1255,17 @@ body {
       <button class="bank-action-btn secondary" onclick="openSessionPicker('quiz')">✍️ Quiz</button>
     </div>
 
+    <div class="leech-panel" id="leech-panel" style="display:none;">
+      <div class="leech-panel-head">
+        <span>🔥 常錯字 <b id="leech-count">0</b> 個</span>
+        <button class="leech-go" onclick="openSessionPicker('flashcard')">專攻 ›</button>
+      </div>
+      <div class="leech-panel-sub">累計答錯 3 次以上、還沒連續答對 3 次的字。連續答對就會自動離開名單。</div>
+      <div class="bank-filter">
+        <button class="filter-chip active" data-filter="all">全部</button>
+        <button class="filter-chip" data-filter="leech">只看常錯字</button>
+      </div>
+    </div>
     <div class="bank-graduated" id="bank-graduated" style="display:none;"></div>
     <div class="bank-word-list" id="bank-word-list"></div>
   </div>
@@ -1229,10 +1302,15 @@ body {
     <div class="card-3d-wrap" onclick="flipCard()">
       <div class="card-3d" id="flashcard">
         <div class="card-face card-front">
+          <div class="leech-tag" id="fc-leech" style="display:none;">🔥 常錯字</div>
           <div class="card-word" id="fc-word"></div>
-          <div class="card-phonetic" id="fc-phonetic"></div>
+          <div class="card-phonetic-row">
+            <span class="card-phonetic" id="fc-phonetic"></span>
+            <button class="say-btn" id="fc-say" title="聽發音">🔊</button>
+          </div>
           <div class="card-pos-badge" id="fc-pos"></div>
           <div class="card-front-en" id="fc-front-en"></div>
+          <div class="card-front-ex" id="fc-front-ex"></div>
           <div class="card-hint">Tap to flip</div>
         </div>
         <div class="card-face card-back">
@@ -1263,9 +1341,12 @@ body {
   </div>
   <div class="quiz-area">
     <div class="quiz-prompt">
-      <div class="quiz-label">這個單字是什麼意思？</div>
+      <div class="quiz-label" id="qz-label">這個單字是什麼意思？</div>
       <div class="quiz-word" id="qz-word"></div>
-      <div class="quiz-phonetic" id="qz-phonetic"></div>
+      <div class="card-phonetic-row">
+        <span class="quiz-phonetic" id="qz-phonetic"></span>
+        <button class="say-btn" id="qz-say" title="聽發音">🔊</button>
+      </div>
     </div>
     <div class="quiz-options" id="qz-options"></div>
   </div>
@@ -1282,10 +1363,15 @@ body {
   </div>
   <div class="quiz-area">
     <div class="quiz-prompt">
-      <div class="quiz-label">這個意思的英文是？</div>
+      <div class="quiz-label" id="sp-label">這個意思的英文是？</div>
       <div class="spell-zh" id="sp-zh"></div>
       <div><span class="spell-pos" id="sp-pos"></span></div>
+      <div class="spell-ex" id="sp-ex"></div>
       <div class="spell-blanks" id="sp-blanks"></div>
+      <div class="spell-tools">
+        <button class="tool-btn" id="sp-say">🔊 聽發音</button>
+        <button class="tool-btn" id="sp-hint" onclick="spellHint()">💡 再給一個字母</button>
+      </div>
     </div>
     <div class="spell-input-row">
       <input class="spell-input" id="sp-input" type="text" placeholder="type the word..."
@@ -1349,6 +1435,7 @@ body {
       <button class="session-opt" onclick="beginSession(10)">10 個字 <span>約 2-3 分鐘</span></button>
       <button class="session-opt" onclick="beginSession(20)">20 個字 <span>約 5 分鐘</span></button>
       <button class="session-opt" onclick="beginSession(0)">全部 <span id="session-all-count"></span></button>
+      <button class="session-opt leech-opt" id="session-leech" onclick="beginSession(0, 'leech')" style="display:none;">🔥 只練常錯字 <span id="session-leech-count"></span></button>
     </div>
     <button onclick="closeSessionPicker()" style="width:100%; margin-top:14px; padding:12px; border:none; border-radius:var(--radius-sm); background:var(--bg2); color:var(--ink2); font-size:14px; font-weight:600; cursor:pointer;">取消</button>
   </div>
@@ -1392,6 +1479,10 @@ body {
       <button class="set-row" onclick="openImportModal()">
         <span class="set-icon">📥</span>
         <span>匯入備份<span class="set-sub">從檔案或貼上文字還原</span></span>
+      </button>
+      <button class="set-row" onclick="toggleAutoplay()">
+        <span class="set-icon">🔊</span>
+        <span>練習時自動唸出單字<span class="set-sub" id="autoplay-state">目前：開</span></span>
       </button>
       <button class="set-row" onclick="closeSettings(); openApiKeyModal();">
         <span class="set-icon">🔑</span>
@@ -1543,6 +1634,23 @@ function storageUsage() {
   }
   return { mb: chars * 2 / 1024 / 1024, words: wordBank.length };
 }
+
+// 去重：同一個字（不分大小寫）只留一筆，保留進度較高者、合併答錯次數
+(function dedupeBank() {
+  const seen = new Map();
+  let dropped = 0;
+  wordBank.forEach(w => {
+    const key = String(w.word || '').toLowerCase().trim();
+    if (!key) { dropped++; return; }
+    const cur = seen.get(key);
+    if (!cur) { seen.set(key, w); return; }
+    dropped++;
+    const keep = (w.stage || 0) > (cur.stage || 0) ? w : cur;
+    keep.wrongCount = Math.max(w.wrongCount || 0, cur.wrongCount || 0);
+    seen.set(key, keep);
+  });
+  if (dropped) { wordBank = [...seen.values()]; saveBank(); }
+})();
 
 // 查詢結果快取：Gemini 查過的字存起來，重新整理不用再燒 API
 try {
@@ -2362,6 +2470,46 @@ function speakFallback(word, lang, btnEl) {
   speechSynthesis.speak(u);
 }
 
+// 練習用：唸出某個字（有真人音檔用真人，沒有就退到 TTS）
+function sayWord(w, btnEl) {
+  if (!w) return;
+  speak(w.display || w.word, 'en-US', btnEl || null, w.audioUS || '');
+}
+
+// 練習畫面出題時自動唸一次（可在設定關掉）
+function autoplayOn() {
+  try { return localStorage.getItem('vocabflow_autoplay') !== '0'; } catch (e) { return true; }
+}
+function autoSay(w) { if (autoplayOn()) sayWord(w, null); }
+
+function toggleAutoplay() {
+  try { localStorage.setItem('vocabflow_autoplay', autoplayOn() ? '0' : '1'); } catch (e) {}
+  updateAutoplayLabel();
+  showToast(autoplayOn() ? '🔊 出題時會自動唸出單字' : '🔇 已關閉自動發音');
+}
+function updateAutoplayLabel() {
+  const el = document.getElementById('autoplay-state');
+  if (el) el.textContent = autoplayOn() ? '目前：開' : '目前：關';
+}
+
+// 例句裡找出目標字（含 -s/-ed/-ing 等常見變化），用來標粗或挖空
+function wordRegex(word) {
+  const base = String(word).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const stem = base.replace(/e$/, '');
+  return new RegExp(`\\b(${base}|${stem})(s|es|ed|d|ing|ly|er|ers)?\\b`, 'gi');
+}
+function highlightIn(sentence, w) {
+  const html = esc(sentence || '');
+  if (!sentence || w.type === 'chunk') return html;
+  return html.replace(wordRegex(w.word), m => `<b>${m}</b>`);
+}
+function maskIn(sentence, w) {
+  if (!sentence || w.type === 'chunk') return '';
+  const re = wordRegex(w.word);
+  if (!re.test(sentence)) return '';            // 例句裡找不到這個字就不顯示，免得洩題
+  return esc(sentence).replace(wordRegex(w.word), '＿＿＿');
+}
+
 // Pre-warm speechSynthesis for fallback
 if ('speechSynthesis' in window) {
   speechSynthesis.getVoices();
@@ -2399,6 +2547,8 @@ function renderRecent() {
 // ============================================================
 //  WORD BANK
 // ============================================================
+let bankFilter = 'all';
+
 function renderBank() {
   const total = wordBank.length;
   const learning = wordBank.filter(w => w.level === 'new' || w.level === 'learning').length;
@@ -2423,7 +2573,18 @@ function renderBank() {
   const levelLabel = { new: '新字', learning: '學習中', mastered: '已掌握' };
   const levelClass = { new: 'level-new', learning: 'level-learning', mastered: 'level-mastered' };
 
-  list.innerHTML = [...wordBank].sort((a, b) => b.addedAt - a.addedAt).map(w => {
+  // 常錯字面板
+  const leeches = leechWords();
+  document.getElementById('leech-panel').style.display = leeches.length ? '' : 'none';
+  document.getElementById('leech-count').textContent = leeches.length;
+  if (!leeches.length) bankFilter = 'all';
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.filter === bankFilter);
+    c.onclick = () => { bankFilter = c.dataset.filter; renderBank(); };
+  });
+  const rows = bankFilter === 'leech' ? leeches : [...wordBank].sort((a, b) => b.addedAt - a.addedAt);
+
+  list.innerHTML = rows.map(w => {
     const display = w.meanings[0].zh || w.meanings[0].en || '';
     const displayShort = display.length > 20 ? display.slice(0, 20) + '...' : display;
     return `
@@ -2433,6 +2594,7 @@ function renderBank() {
         <div class="bw-meaning">${esc(displayShort)}</div>
       </div>
       <div class="bw-right">
+        ${w.wrongCount ? `<span class="bw-wrong${isLeech(w) ? ' hot' : ''}">錯 ${w.wrongCount}</span>` : ''}
         <span class="bw-level ${levelClass[w.level] || 'level-new'}">${levelLabel[w.level] || '新字'}</span>
         <button class="bw-grad" data-grad="${esc(w.word)}" title="我記熟了，移出字庫">🎓</button>
       </div>
@@ -2500,6 +2662,8 @@ function confirmGraduate() {
 //  答對 → stage+1，間隔拉長；答錯 → stage 歸零，明天到期
 // ============================================================
 const SRS_INTERVALS = [1, 3, 7, 16, 35, 70]; // 天數
+const LEECH_MIN_WRONG = 3;   // 累計答錯 3 次以上…
+const LEECH_MAX_STAGE = 3;   // …而且還沒連續答對 3 次 → 算「常錯字」
 
 function ensureSRS(w) {
   if (w.stage === undefined) {
@@ -2515,34 +2679,56 @@ function dueWords() {
   return wordBank.filter(w => ensureSRS(w).due <= now);
 }
 
-function updateSRS(word, correct) {
+// result：true 答對／false 答錯／'hard' 靠提示才答對（不升級，明天再來一次）
+function updateSRS(word, result) {
   const item = wordBank.find(w => w.word === word);
   if (!item) return;
   ensureSRS(item);
   const DAY = 24 * 60 * 60 * 1000;
-  if (correct) {
+  const now = Date.now();
+  item.lastSeen = now;
+  if (result === 'hard') {
+    item.due = now + DAY;
+  } else if (result) {
     item.stage = Math.min(item.stage + 1, SRS_INTERVALS.length - 1);
-    item.due = Date.now() + SRS_INTERVALS[item.stage] * DAY;
+    item.due = now + SRS_INTERVALS[item.stage] * DAY;
   } else {
     item.stage = 0;
-    item.due = Date.now() + 1 * DAY;
+    item.due = now + DAY;
+    item.wrongCount = (item.wrongCount || 0) + 1;   // 常錯字統計
+    item.lastWrong = now;
   }
   saveBank();
   updateDueBanner();
 }
 
-// 選字優先序：到期越久 > 階段越低（越不熟）> 其餘
+// 常錯字：錯很多次、又還沒真正學會的字。連續答對 3 次（stage 回到 3）就自動脫離名單
+function isLeech(w) {
+  return (w.wrongCount || 0) >= LEECH_MIN_WRONG && (w.stage || 0) < LEECH_MAX_STAGE;
+}
+function leechWords() {
+  return wordBank.filter(isLeech).sort((a, b) => (b.wrongCount || 0) - (a.wrongCount || 0));
+}
+
+let sessionFocus = null;   // null＝一般排程；'leech'＝專攻常錯字
+
+// 選字：
+//   1. 今天到期的字優先（越早到期越前面）
+//   2. 名額沒滿，補「最久沒見到」的字
+// 舊邏輯是補「最不熟」的字——但剛練過、剛答錯的字熟練度正好最低，
+// 結果每回合都被抓回來，30 個字的字庫連續兩回合重複 8 成。
 function srsPick(count) {
+  if (sessionFocus === 'leech') {
+    const ls = leechWords();
+    return shuffle(count > 0 ? ls.slice(0, count) : ls);
+  }
   const now = Date.now();
-  const pool = wordBank.map(ensureSRS).slice().sort((a, b) => {
-    const aDue = a.due <= now, bDue = b.due <= now;
-    if (aDue !== bDue) return aDue ? -1 : 1;   // 到期的優先
-    if (aDue && bDue) return a.due - b.due;     // 越早到期越前面
-    if (a.stage !== b.stage) return a.stage - b.stage; // 越不熟越前面
-    return 0;
-  });
-  const picked = count > 0 ? pool.slice(0, count) : pool;
-  return shuffle(picked); // 選定後打亂出題順序
+  const all = wordBank.map(ensureSRS);
+  const due = all.filter(w => w.due <= now).sort((a, b) => a.due - b.due);
+  const rest = all.filter(w => w.due > now)
+    .sort((a, b) => ((a.lastSeen || 0) - (b.lastSeen || 0)) || (a.stage - b.stage));
+  const pool = [...due, ...rest];
+  return shuffle(count > 0 ? pool.slice(0, count) : pool);
 }
 
 function updateDueBanner() {
@@ -2577,6 +2763,10 @@ function openSessionPicker(mode) {
     wordBank.length === 0 ? '字庫還是空的，先用內建單字練習'
     : (due > 0 ? `今日待複習 ${due} 個字，會優先出現` : '今日複習都完成了，可自由加練');
   document.getElementById('session-all-count').textContent = `共 ${total} 個字`;
+  const nLeech = leechWords().length;
+  const leechBtn = document.getElementById('session-leech');
+  leechBtn.style.display = nLeech ? 'flex' : 'none';
+  document.getElementById('session-leech-count').textContent = `${nLeech} 個字`;
   document.getElementById('session-modal').style.display = 'flex';
 }
 
@@ -2584,8 +2774,9 @@ function closeSessionPicker() {
   document.getElementById('session-modal').style.display = 'none';
 }
 
-function beginSession(count) {
+function beginSession(count, focus) {
   closeSessionPicker();
+  sessionFocus = focus || null;
   if (pendingMode === 'quiz') startQuiz(count);
   else if (pendingMode === 'spell') startSpell(count);
   else startFlashcard(count);
@@ -2620,23 +2811,23 @@ function renderFlashcard() {
   wordEl.textContent = label;
   // 語塊比單字長很多，字級要跟著縮才不會爆版
   wordEl.style.fontSize = label.length > 24 ? '22px' : label.length > 14 ? '26px' : '';
-  document.getElementById('fc-phonetic').textContent = w.phonetic;
-  document.getElementById('fc-pos').textContent = w.pos;
-  // 正面放英文解釋：先用英文理解，翻面再對中文
+  document.getElementById('fc-phonetic').textContent = w.phonetic || '';
+  document.getElementById('fc-pos').textContent = w.pos || '';
+  document.getElementById('fc-leech').style.display = isLeech(w) ? '' : 'none';
+
+  // 正面給足提示：英文解釋＋發音＋英文例句（目標字標粗），先用英文理解
   const frontEn = document.getElementById('fc-front-en');
   frontEn.textContent = m.en || '';
   frontEn.style.fontSize = (m.en || '').length > 90 ? '13px' : '';
-  document.getElementById('fc-meaning-zh').textContent = m.zh || '';
+  document.getElementById('fc-front-ex').innerHTML = m.example ? highlightIn(m.example, w) : '';
 
-  // 背面瘦身：只放一句例句，完整內容用「查看詳情」進字典頁
-  let exHTML = '';
-  if (m.example) {
-    exHTML += `<div class="card-example-item">
-      <div class="card-example-en">${esc(m.example)}</div>
-      ${m.exampleZh ? `<div class="card-example-zh-text">${esc(m.exampleZh)}</div>` : ''}
-    </div>`;
-  }
-  document.getElementById('fc-examples').innerHTML = exHTML;
+  const sayBtn = document.getElementById('fc-say');
+  sayBtn.onclick = e => { e.stopPropagation(); sayWord(w, sayBtn); };   // 別觸發翻卡
+
+  // 背面：中文意思＋例句翻譯
+  document.getElementById('fc-meaning-zh').textContent = m.zh || '';
+  document.getElementById('fc-examples').innerHTML = m.exampleZh
+    ? `<div class="card-example-item"><div class="card-example-zh-text">${esc(m.exampleZh)}</div></div>` : '';
 
   const detailBtn = document.getElementById('fc-detail-btn');
   detailBtn.onclick = (e) => {
@@ -2649,6 +2840,7 @@ function renderFlashcard() {
   document.getElementById('fc-counter').textContent = isRetry ? '重練 ✦' : (done + ' / ' + fcTotal);
   document.getElementById('fc-progress').style.width = (Math.min(done / fcWords.length, 1) * 100) + '%';
   document.getElementById('flashcard').classList.remove('flipped');
+  autoSay(w);
 }
 
 function flipCard() {
@@ -2694,8 +2886,9 @@ function startQuiz(count) {
   } else {
     source = shuffle(Object.entries(DICTIONARY).slice(0, 10).map(([word, data]) => ({ word, ...data, level: 'new' })));
   }
-  if (source.length < 4) {
-    showToast('Need at least 4 words for quiz');
+  // 一般模式需要 4 個字湊選項；常錯字模式選項從整個字庫抽，題目少也沒關係
+  if (source.length < (sessionFocus === 'leech' ? 1 : 4)) {
+    showToast('Quiz 需要至少 4 個字');
     return;
   }
   qzWords = [...source];
@@ -2715,7 +2908,11 @@ function renderQuiz() {
   qzAnswered = false;
   const w = qzWords[qzIndex];
   document.getElementById('qz-word').textContent = w.display || w.word;
-  document.getElementById('qz-phonetic').textContent = w.phonetic;
+  document.getElementById('qz-phonetic').textContent = w.phonetic || '';
+  document.getElementById('qz-label').textContent = (isLeech(w) ? '🔥 常錯字 · ' : '') + '這個單字是什麼意思？';
+  const qSay = document.getElementById('qz-say');
+  qSay.onclick = () => sayWord(w, qSay);
+  autoSay(w);
   const qDone = Math.min(qzIndex + 1, qzWords.length);
   const qRetry = qzIndex >= qzTotal;
   document.getElementById('qz-counter').textContent = qRetry ? '重練 ✦' : (qDone + ' / ' + qzTotal);
@@ -2805,6 +3002,7 @@ function openSettings() {
     + (last ? `上次備份 ${fmtSince(last)}` : '還沒備份過');
   el.style.color = storageFull ? 'var(--red)' : 'var(--ink3)';
   if (storageFull) el.textContent = '⚠️ 空間已滿，新進度無法存檔——請立刻匯出備份';
+  updateAutoplayLabel();
   document.getElementById('settings-modal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
@@ -3017,15 +3215,50 @@ function startSpell(count) {
   renderSpell();
 }
 
+let spHints = 0, spBaseHints = 0;   // 目前露出幾個字母／一開始免費給幾個
+
+function spellLetters(w) { return w.word.replace(/[^a-z]/gi, '').length; }
+
+function renderBlanks() {
+  const w = spWords[spIndex];
+  let shown = 0;
+  document.getElementById('sp-blanks').textContent = w.word.split('').map(c => {
+    if (!/[a-z]/i.test(c)) return c;
+    return shown++ < spHints ? c : '_';
+  }).join(' ');
+  const hintBtn = document.getElementById('sp-hint');
+  hintBtn.disabled = spHints >= spellLetters(w) - 1;   // 最後一格留給你自己
+}
+
+function spellHint() {
+  if (spAnswered) return;
+  const w = spWords[spIndex];
+  if (spHints >= spellLetters(w) - 1) return;
+  spHints++;
+  renderBlanks();
+  document.getElementById('sp-input').focus();
+}
+
 function renderSpell() {
   spAnswered = false;
   const w = spWords[spIndex];
   const m = w.meanings[0];
   document.getElementById('sp-zh').textContent = m.zh;
   document.getElementById('sp-pos').textContent = w.pos || '';
-  // 提示：每個字母一條底線（空格與連字號原樣顯示）
-  document.getElementById('sp-blanks').textContent =
-    w.word.split('').map(c => /[a-z]/i.test(c) ? '_' : c).join(' ');
+  document.getElementById('sp-label').textContent = (isLeech(w) ? '🔥 常錯字 · ' : '') + '這個意思的英文是？';
+
+  // 例句挖空：給語境，又不洩題
+  const exEl = document.getElementById('sp-ex');
+  exEl.innerHTML = maskIn(m.example, w);
+  exEl.style.display = exEl.innerHTML ? '' : 'none';
+
+  // 首字母免費送（3 個字母以上的字），其他靠「💡 再給一個字母」
+  spBaseHints = spellLetters(w) >= 3 ? 1 : 0;
+  spHints = spBaseHints;
+  renderBlanks();
+
+  const spSay = document.getElementById('sp-say');
+  spSay.onclick = () => { sayWord(w, spSay); document.getElementById('sp-input').focus(); };
 
   const sDone = Math.min(spIndex + 1, spWords.length);
   const sRetry = spIndex >= spTotal;
@@ -3039,6 +3272,7 @@ function renderSpell() {
   document.getElementById('sp-feedback').innerHTML = '';
   document.getElementById('sp-feedback').className = 'spell-feedback';
   input.focus();
+  autoSay(w);
 }
 
 function submitSpell() {
@@ -3061,18 +3295,23 @@ function submitSpell() {
 
   const first = !(w.word in spFirstTry);
   if (first) spFirstTry[w.word] = correct;
+  const usedHints = spHints > spBaseHints;
+  const grade = usedHints ? 'hard' : true;
+
+  // 答完一定唸一次正確發音：把「聲音」和「拼法」綁在一起記
+  sayWord(w, null);
 
   const fb = document.getElementById('sp-feedback');
   if (exact) {
     input.classList.add('sp-correct');
-    fb.className = 'spell-feedback ok';
-    fb.innerHTML = `🎉 正確！<div class="sp-answer">${esc(w.word)}</div>`;
-    if (first) { updateWordLevel(w.word, 'up'); updateSRS(w.word, true); }
+    fb.className = 'spell-feedback ' + (usedHints ? 'almost' : 'ok');
+    fb.innerHTML = (usedHints ? '答對了！用了提示，明天再練一次' : '🎉 正確！') + `<div class="sp-answer">${esc(w.word)}</div>`;
+    if (first) { if (!usedHints) updateWordLevel(w.word, 'up'); updateSRS(w.word, grade); }
   } else if (almost) {
     input.classList.add('sp-correct');
     fb.className = 'spell-feedback almost';
     fb.innerHTML = `差${dist === 1 ? '一' : '兩'}個字母，算你對！正確拼法：<div class="sp-answer">${esc(w.display || w.word)}</div>`;
-    if (first) { updateWordLevel(w.word, 'up'); updateSRS(w.word, true); }
+    if (first) { if (!usedHints) updateWordLevel(w.word, 'up'); updateSRS(w.word, grade); }
   } else {
     input.classList.add('sp-wrong');
     fb.className = 'spell-feedback no';

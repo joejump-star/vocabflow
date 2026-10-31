@@ -48,7 +48,14 @@ FLASHCARD / QUIZ / SPELLING
 | `register` | `formal` / `neutral` / `casual` |
 | `note` | 使用提醒一句話 |
 
-存進單字庫後另外加上：`level`（`new`/`learning`/`mastered`）、`addedAt`、`stage`、`due`。
+存進單字庫後另外加上：`level`（`new`/`learning`/`mastered`）、`addedAt`、`stage`、`due`、`lastSeen`（上次練到的時間）、`wrongCount`／`lastWrong`（常錯字統計）。
+
+### 選字與計分
+
+- `srsPick()`：今天到期的字優先（越早到期越前），名額沒滿再補 **`lastSeen` 最舊** 的字。**不要改回「補最不熟的字」**——剛練過、剛答錯的字熟練度正好最低，會造成每回合大量重複（實測 30 字字庫連續兩回合重複 8 成）
+- `updateSRS(word, result)`：`true` 升一級、`false` 歸零並累計 `wrongCount`、`'hard'`（靠提示才答對）熟練度不動、明天到期
+- 常錯字 `isLeech()`：`wrongCount >= 3` 且 `stage < 3`。連續答對 3 次就自然離開名單，但 `wrongCount` 保留
+- `sessionFocus === 'leech'` 時 `srsPick()` 只出常錯字
 
 **向下相容很重要**：使用者的舊資料不會有新欄位。渲染時一律用 `(data.xxx || [])` 之類的防禦寫法，缺欄位就不顯示該區塊，重查一次即補齊。
 
@@ -80,6 +87,7 @@ FLASHCARD / QUIZ / SPELLING
 | `vocabflow_graduated` | 已精通的字 | 只存字串與時間，很小 |
 | `vocabflow_gemini_key` | API 金鑰 | **絕不可寫進備份檔或程式碼** |
 | `vocabflow_last_backup` | 上次備份時間 | |
+| `vocabflow_autoplay` | 練習時是否自動發音 | `'0'` 為關，其餘為開 |
 
 ### 實測數字
 
