@@ -48,12 +48,16 @@ FLASHCARD / QUIZ / SPELLING
 | `register` | `formal` / `neutral` / `casual` |
 | `note` | 使用提醒一句話 |
 
+學習者自己的資料（只存在單字庫，不進查詢快取）：`mnemonic`（`{ kind, hook, explain, by: 'ai'|'me', at }`，也會寫進快取）、`sentences[]`（`{ text, at, review: { verdict: natural|ok|wrong, corrected, feedback, better } | null }`，每字最多 20 句）。
+
+**讀詞條一律用 `entryFor(word)`**：查詢快取打底、單字庫版本蓋上去。快取上限 200 筆會被擠掉，單字庫不會；而且使用者的編輯、記法、造句都在單字庫。**寫詞條一律用 `updateEntry(word, patch, alsoCache)`**，同步單字庫、目前畫面與（選擇性）快取。
+
 存進單字庫後另外加上：`level`（`new`/`learning`/`mastered`）、`addedAt`、`stage`、`due`、`lastSeen`（上次練到的時間）、`wrongCount`／`lastWrong`（常錯字統計）。
 
 ### 選字與計分
 
 - `srsPick()`：今天到期的字優先（越早到期越前），名額沒滿再補 **`lastSeen` 最舊** 的字。**不要改回「補最不熟的字」**——剛練過、剛答錯的字熟練度正好最低，會造成每回合大量重複（實測 30 字字庫連續兩回合重複 8 成）
-- `updateSRS(word, result)`：`true` 升一級、`false` 歸零並累計 `wrongCount`、`'hard'`（靠提示才答對）熟練度不動、明天到期
+- `updateSRS(word, result)`：`true` 升一級、`false` 歸零並累計 `wrongCount`、`'hard'`（閃卡「模糊」或拼字靠提示才答對）熟練度不動、明天到期
 - 常錯字 `isLeech()`：`wrongCount >= 3` 且 `stage < 3`。連續答對 3 次就自然離開名單，但 `wrongCount` 保留
 - `sessionFocus === 'leech'` 時 `srsPick()` 只出常錯字
 
@@ -113,6 +117,14 @@ FLASHCARD / QUIZ / SPELLING
 **絕對不要把儲存錯誤靜默吞掉。** 這個 app 曾經有過這個 bug：空間滿了卻不告知，使用者以為進度有存、實際上邊學邊掉，重開才發現全沒了。任何寫入 localStorage 的新程式碼都要走 `trySet()`。
 
 ## Gemini 查詢
+
+所有呼叫都走 `callGeminiJSON(prompt, { maxTokens, temperature, label, silent })`：模型備援、25 秒逾時、401/403 清金鑰、JSON 清理都在這裡。`silent: true` 給背景工作用（例如字變成常錯字時自動產生記法），不跳提示、沒金鑰也不開設定面板。目前三個用途：
+
+| 用途 | 函式 | maxTokens | temperature |
+|---|---|---|---|
+| 查字典 | `geminiDictionary()` | 2600 | 0.2 |
+| 記憶聯想 | `generateMnemonic()` | 400 | 0.8（要有創意） |
+| 造句批改 | `reviewSentence()` | 700 | 0.3 |
 
 - **BYOK**：金鑰由使用者自帶，存在他自己的瀏覽器，透過 `x-goog-api-key` header 傳送
 - 模型：`gemini-2.5-flash-lite`，404 時退到 `gemini-2.5-flash`
