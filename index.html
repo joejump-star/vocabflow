@@ -1019,9 +1019,18 @@ body {
   padding: 3px 12px; border-radius: 12px;
 }
 .spell-blanks {
-  font-family: var(--font-en); font-size: 18px; font-weight: 600;
-  color: var(--ink3); letter-spacing: 6px; margin-top: 16px;
+  font-family: var(--font-en); font-size: 22px; font-weight: 600;
+  color: var(--ink3); margin-top: 16px;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
 }
+.sp-slot {
+  min-width: 20px; text-align: center; padding-bottom: 2px;
+  border-bottom: 2px solid transparent; transition: color 0.15s;
+}
+.sp-slot.hint { color: var(--ink2); }
+.sp-slot.ok { color: var(--accent); border-bottom-color: var(--accent); }
+.sp-slot.bad { color: var(--red); border-bottom-color: var(--red); }
+.sp-slot.sep { min-width: 10px; }
 .spell-input-row {
   display: flex; gap: 10px; margin-top: 28px;
 }
@@ -1236,7 +1245,7 @@ body {
     </div>
 
     <div style="flex:1"></div>
-    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.3 · 1031</div>
+    <div class="home-version" style="text-align:center; padding-bottom:8px;">v3.4 · 1031</div>
   </div>
 
   <div class="bottom-nav">
@@ -3540,16 +3549,30 @@ function startSpell(count) {
 }
 
 let spHints = 0, spBaseHints = 0;   // 目前露出幾個字母／一開始免費給幾個
+let spSlips = 0, spPrevTyped = '';   // 打錯又被格子提醒改正的次數（用來判斷是不是靠對照才拼出來）
 
 function spellLetters(w) { return w.word.replace(/[^a-z]/gi, '').length; }
 
 function renderBlanks() {
   const w = spWords[spIndex];
-  let shown = 0;
-  document.getElementById('sp-blanks').textContent = w.word.split('').map(c => {
-    if (!/[a-z]/i.test(c)) return c;
-    return shown++ < spHints ? c : '_';
-  }).join(' ');
+  const target = w.word.toLowerCase();
+  const typed = document.getElementById('sp-input').value.toLowerCase();
+  let letterNo = 0;
+  const slots = target.split('').map((c, i) => {
+    const isLetter = /[a-z]/.test(c);
+    const hinted = isLetter && letterNo++ < spHints;
+    if (i < typed.length) {
+      const t = typed[i] === ' ' ? '␣' : typed[i];
+      return `<span class="sp-slot ${typed[i] === c ? 'ok' : 'bad'}">${esc(t)}</span>`;
+    }
+    if (!isLetter) return `<span class="sp-slot sep">${esc(c)}</span>`;
+    return hinted ? `<span class="sp-slot hint">${esc(c)}</span>` : `<span class="sp-slot">_</span>`;
+  });
+  // 打超過字長的部分也顯示成紅色，讓你知道多打了
+  for (let i = target.length; i < typed.length; i++) {
+    slots.push(`<span class="sp-slot bad">${esc(typed[i])}</span>`);
+  }
+  document.getElementById('sp-blanks').innerHTML = slots.join('');
   const hintBtn = document.getElementById('sp-hint');
   hintBtn.disabled = spHints >= spellLetters(w) - 1;   // 最後一格留給你自己
 }
@@ -3579,6 +3602,8 @@ function renderSpell() {
   // 首字母免費送（3 個字母以上的字），其他靠「💡 再給一個字母」
   spBaseHints = spellLetters(w) >= 3 ? 1 : 0;
   spHints = spBaseHints;
+  spSlips = 0; spPrevTyped = '';
+  document.getElementById('sp-input').value = '';
   renderBlanks();
 
   const spSay = document.getElementById('sp-say');
@@ -3619,8 +3644,9 @@ function submitSpell() {
 
   const first = !(w.word in spFirstTry);
   if (first) spFirstTry[w.word] = correct;
-  const usedHints = spHints > spBaseHints;
+  const usedHints = spHints > spBaseHints || spSlips >= 2;   // 打錯一次當手滑，不算
   const grade = usedHints ? 'hard' : true;
+  const helpNote = spHints > spBaseHints ? '用了提示' : '中間靠格子對照改了幾次';
 
   // 答完一定唸一次正確發音：把「聲音」和「拼法」綁在一起記
   sayWord(w, null);
@@ -3629,7 +3655,7 @@ function submitSpell() {
   if (exact) {
     input.classList.add('sp-correct');
     fb.className = 'spell-feedback ' + (usedHints ? 'almost' : 'ok');
-    fb.innerHTML = (usedHints ? '答對了！用了提示，明天再練一次' : '🎉 正確！') + `<div class="sp-answer">${esc(w.word)}</div>`;
+    fb.innerHTML = (usedHints ? `答對了！${helpNote}，明天再練一次` : '🎉 正確！') + `<div class="sp-answer">${esc(w.word)}</div>`;
     if (first) { if (!usedHints) updateWordLevel(w.word, 'up'); updateSRS(w.word, grade); }
   } else if (almost) {
     input.classList.add('sp-correct');
@@ -3658,6 +3684,25 @@ function submitSpell() {
 
 document.getElementById('sp-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') submitSpell();
+});
+
+// 邊打邊對照：每打一個字母，格子就即時更新
+document.getElementById('sp-input').addEventListener('input', e => {
+  if (spAnswered || !spWords[spIndex]) return;
+  const target = spWords[spIndex].word.toLowerCase();
+  const typed = e.target.value.toLowerCase();
+  // 新打進來的字母有錯 → 記一次（之後改對了，代表是靠對照拼出來的）
+  if (typed.length > spPrevTyped.length) {
+    for (let i = spPrevTyped.length; i < typed.length; i++) {
+      if (typed[i] !== target[i]) { spSlips++; break; }
+    }
+  }
+  spPrevTyped = typed;
+  renderBlanks();
+  // 整個字拼對就自動送出，手機上少按一下
+  if (typed === target) setTimeout(() => {
+    if (!spAnswered && document.getElementById('sp-input').value.toLowerCase() === target) submitSpell();
+  }, 300);
 });
 
 // ============================================================
